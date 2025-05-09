@@ -10,7 +10,7 @@ public class Main {
         String zy1Path = "src/main/resources/data/ZY1.csv";
         String zy2Path = "src/main/resources/data/ZY2.csv";
 
-        System.out.println("!!!!!!");
+        System.out.println("222222");
 
         List<Product1> z1Products = CSVReaderUtil.readZ1CSV(z1Path);
         List<Product2> z2Products = CSVReaderUtil.readZ2CSV(z2Path);
