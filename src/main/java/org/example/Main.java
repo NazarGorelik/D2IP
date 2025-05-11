@@ -1,39 +1,65 @@
 package org.example;
 
+import com.opencsv.CSVReader;
+import org.example.model.Pair;
+import org.example.model.Product;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public class Main {
+    public static List<Product> loadProducts(String filePath) throws Exception {
+        List<Product> products = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader("src/main/recources/data/Z1_update.csv"))) {
+            String line;
+            reader.readLine(); // Skip header
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(",", 2); // only split on first comma
+                if (parts.length < 2) continue;
+                try {
+                    products.add(new Product(Integer.parseInt(parts[0].trim()), parts[1].trim()));
+                } catch (NumberFormatException e) {
+                    continue;
+                }
+            }
+        }
+        return products;
+    }
+
+    public static List<Pair> loadGroundTruth(String filePath) throws Exception {
+        List<Pair> gt = new ArrayList<>();
+        try (CSVReader reader = new CSVReader(new FileReader(filePath))) {
+            reader.readNext();
+            String[] line;
+            while ((line = reader.readNext()) != null) {
+                int id1 = Integer.parseInt(line[0]);
+                int id2 = Integer.parseInt(line[1]);
+                if (id1 != id2) {
+                    int tmp = id1;
+                    id1 = id2;
+                    id2 = tmp;
+                }
+                gt.add(new Pair(id1, id2));
+            }
+        }
+        return gt;
+    }
+
     public static void main(String[] args) throws Exception {
-        String z1Path = "src/main/resources/data/Z1.csv";
-        String z2Path = "src/main/resources/data/Z2.csv";
-        String zy1Path = "src/main/resources/data/ZY1.csv";
-        String zy2Path = "src/main/resources/data/ZY2.csv";
+        List<Product> products = loadProducts("src/main/recources/data/Z1_update.csv");
+        List<Pair> groundTruth = loadGroundTruth("src/main/recources/data/ZY1_update.csv");
 
-        System.out.println("222222");
+        long start = System.currentTimeMillis();
+        //generate blocks with similar pattern
+        Map<String, List<Integer>> blocks = Blocker.createBlocks(products);
+        List<Pair> matches = Matcher.generateMatches(blocks, products, 0.5);
+        long end = System.currentTimeMillis();
 
-        List<Product1> z1Products = CSVReaderUtil.readZ1CSV(z1Path);
-        List<Product2> z2Products = CSVReaderUtil.readZ2CSV(z2Path);
-
-        long startTime = System.currentTimeMillis();
-
-        System.out.println("Dataset 1...");
-        Map<String, List<Integer>> blocks1 = DuplicateDetector.createBlocksProduct1(z1Products);
-        List<MatchPair> matches1 = DuplicateDetector.generateMatchesProduct1(blocks1, z1Products);
-
-        System.out.println("Dataset 2...");
-        Map<String, List<Integer>> blocks2 = DuplicateDetector.createBlocksProduct2(z2Products);
-        List<MatchPair> matches2 = DuplicateDetector.generateMatchesProduct2(blocks2, z2Products);
-
-        long endTime = System.currentTimeMillis();
-        System.out.println("Runtime: " + (endTime - startTime) / 1000.0 + " seconds");
-
-        System.out.println("Evaluation for Dataset 1:");
-        List<MatchPair> groundTruth1 = CSVReaderUtil.readGroundTruth(zy1Path);
-        Evaluator.evaluate(matches1, groundTruth1);
-
-        System.out.println("Evaluation for Dataset 2:");
-        List<MatchPair> groundTruth2 = CSVReaderUtil.readGroundTruth(zy2Path);
-        Evaluator.evaluate(matches2, groundTruth2);
+        System.out.println("------------- Evaluation -------------");
+        System.out.printf("Runtime: %.2f seconds\n", (end - start) / 1000.0);
+        Evaluator.evaluate(matches, groundTruth);
     }
 }
