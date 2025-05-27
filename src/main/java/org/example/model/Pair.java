@@ -7,8 +7,13 @@ public class Pair {
     public int id2;
 
     public Pair(int id1, int id2) {
-        this.id1 = id1;
-        this.id2 = id2;
+        if (id1 <= id2) {
+            this.id1 = id1;
+            this.id2 = id2;
+        } else {
+            this.id1 = id2;
+            this.id2 = id1;
+        }
     }
 
     @Override
@@ -21,5 +26,10 @@ public class Pair {
     @Override
     public int hashCode() {
         return Objects.hash(id1, id2);
+    }
+
+    @Override
+    public String toString() {
+        return "(" + id1 + ", " + id2 + ")";
     }
 }
