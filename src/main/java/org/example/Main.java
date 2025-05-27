@@ -1,3 +1,4 @@
+// === Main.java ===
 package org.example;
 
 import com.opencsv.CSVReader;
@@ -6,14 +7,17 @@ import org.example.model.Product;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public class Main {
+
     public static List<Product> loadProducts(String filePath) throws Exception {
         List<Product> products = new ArrayList<>();
-        try (BufferedReader reader = new BufferedReader(new FileReader("src/main/resources/dataset_1/Z1_update.csv"))) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
             reader.readLine(); // Skip header
             while ((line = reader.readLine()) != null) {
@@ -22,7 +26,7 @@ public class Main {
                 try {
                     products.add(new Product(Integer.parseInt(parts[0].trim()), parts[1].trim()));
                 } catch (NumberFormatException e) {
-                    continue;
+                    // skip malformed line
                 }
             }
         }
@@ -32,34 +36,47 @@ public class Main {
     public static List<Pair> loadGroundTruth(String filePath) throws Exception {
         List<Pair> gt = new ArrayList<>();
         try (CSVReader reader = new CSVReader(new FileReader(filePath))) {
-            reader.readNext();
+            reader.readNext(); // Skip header
             String[] line;
             while ((line = reader.readNext()) != null) {
                 int id1 = Integer.parseInt(line[0]);
                 int id2 = Integer.parseInt(line[1]);
                 if (id1 != id2) {
-                    int tmp = id1;
-                    id1 = id2;
-                    id2 = tmp;
+                    id1 = Math.min(id1, id2);
+                    id2 = Math.max(id1, id2);
+                    gt.add(new Pair(id1, id2));
                 }
-                gt.add(new Pair(id1, id2));
             }
         }
         return gt;
     }
 
     public static void main(String[] args) throws Exception {
-        List<Product> products = loadProducts("src/main/resources/dataset_1/Z1_update.csv");
-        List<Pair> groundTruth = loadGroundTruth("src/main/resources/dataset_1/ZY1_update.csv");
+        String productFile = "src/main/resources/dataset_1/Z1_update.csv";
+        String groundTruthFile = "src/main/resources/dataset_1/ZY1_update.csv";
 
-        long start = System.currentTimeMillis();
-        //generate blocks with similar pattern
+        List<Product> products = loadProducts(productFile);
+        List<Pair> groundTruth = loadGroundTruth(groundTruthFile);
+
         Map<String, List<Integer>> blocks = Blocker.createBlocks(products);
-        List<Pair> matches = Matcher.generateMatches(blocks, products, 0.5);
+
+        System.out.println("------------- BEST COMBINED EVALUATION (Multi-Key Blocking) -------------");
+        long start = System.currentTimeMillis();
+        List<Pair> combinedMatches = Matcher.generateMatches(blocks, products, 0.65, Matcher.SimilarityType.COMBINED);
         long end = System.currentTimeMillis();
 
-        System.out.println("------------- Evaluation -------------");
         System.out.printf("Runtime: %.2f seconds\n", (end - start) / 1000.0);
-        Evaluator.evaluate(matches, groundTruth);
+        Evaluator.evaluate(combinedMatches, groundTruth);
+
+        // === Export finaler Matches ===
+        try (PrintWriter writer = new PrintWriter(new FileWriter("src/main/resources/dataset_1/matched_pairs.csv"))) {
+            writer.println("id1,id2");
+            for (Pair pair : combinedMatches) {
+                writer.printf("%d,%d%n", pair.getId1(), pair.getId2());
+            }
+            System.out.println("✅ Matches wurden exportiert nach src/main/resources/matched_pairs.csv");
+        } catch (Exception e) {
+            System.err.println("❌ Fehler beim Schreiben der CSV: " + e.getMessage());
+        }
     }
 }

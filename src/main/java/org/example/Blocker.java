@@ -1,3 +1,4 @@
+// === Blocker.java ===
 package org.example;
 
 import org.example.model.Product;
@@ -7,8 +8,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Blocker {
+
     public static String generateBlockingKey(String title) {
-        Pattern pattern = Pattern.compile("\\w+\\s\\w+\\d+");
+        // Pattern: Wörter mit mindestens einer Ziffer, z. B. i5, 256GB, x250
+        Pattern pattern = Pattern.compile("\\b\\w*\\d+\\w*\\b");
         Matcher matcher = pattern.matcher(title);
         List<String> parts = new ArrayList<>();
 
