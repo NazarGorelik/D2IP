@@ -13,7 +13,7 @@ import java.util.Map;
 public class Main {
     public static List<Product> loadProducts(String filePath) throws Exception {
         List<Product> products = new ArrayList<>();
-        try (BufferedReader reader = new BufferedReader(new FileReader("src/main/recources/data/Z1_update.csv"))) {
+        try (BufferedReader reader = new BufferedReader(new FileReader("src/main/resources/data/Z1_update.csv"))) {
             String line;
             reader.readLine(); // Skip header
             while ((line = reader.readLine()) != null) {
@@ -49,8 +49,8 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        List<Product> products = loadProducts("src/main/recources/data/Z1_update.csv");
-        List<Pair> groundTruth = loadGroundTruth("src/main/recources/data/ZY1_update.csv");
+        List<Product> products = loadProducts("src/main/resources/data/Z1_update.csv");
+        List<Pair> groundTruth = loadGroundTruth("src/main/resources/data/ZY1_update.csv");
 
         long start = System.currentTimeMillis();
         //generate blocks with similar pattern
