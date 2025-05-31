@@ -49,8 +49,8 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        List<Product> products = loadProducts("src/main/resources/dataset_1/Z2.csv");
-        List<Pair> groundTruth = loadGroundTruth("src/main/resources/dataset_1/ZY2.csv");
+        List<Product> products = loadProducts("src/main/resources/dataset_2/Z2.csv");
+        List<Pair> groundTruth = loadGroundTruth("src/main/resources/dataset_2/ZY2.csv");
 
         long start = System.currentTimeMillis();
         //generate blocks with similar pattern
