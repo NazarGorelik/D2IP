@@ -12,14 +12,20 @@ public class Pair {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof Pair)) return false;
-        Pair p = (Pair) o;
-        return id1 == p.id1 && id2 == p.id2;
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof Pair)) return false;
+        Pair other = (Pair) obj;
+        return id1 == other.id1 && id2 == other.id2;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id1, id2);
+        return 31 * id1 + id2;
+    }
+
+    @Override
+    public String toString() {
+        return "(" + id1 + ", " + id2 + ")";
     }
 }

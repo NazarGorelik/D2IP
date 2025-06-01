@@ -20,9 +20,14 @@ public class Evaluator {
         Set<Pair> fn = new HashSet<>(actual);
         fn.removeAll(predicted);
 
-        double precision = tp.size() / (double) (tp.size() + fp.size());
-        double recall = tp.size() / (double) (tp.size() + fn.size());
-        double f1 = 2 * precision * recall / (precision + recall);
+        //double precision = tp.size() / (double) (tp.size() + fp.size());
+        //double recall = tp.size() / (double) (tp.size() + fn.size());
+        //double f1 = 2 * precision * recall / (precision + recall);
+
+        double precision = tp.size() + fp.size() == 0 ? 0 : tp.size() / (double) (tp.size() + fp.size());
+        double recall = tp.size() + fn.size() == 0 ? 0 : tp.size() / (double) (tp.size() + fn.size());
+        double f1 = precision + recall == 0 ? 0 : 2 * precision * recall / (precision + recall);
+
 
         System.out.println("Reported # of Pairs: " + predicted.size());
         //True Positives (TP): Correctly predicted duplicates.

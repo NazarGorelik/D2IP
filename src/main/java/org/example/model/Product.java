@@ -2,10 +2,18 @@ package org.example.model;
 
 public class Product {
     public int id;
-    public String title;
+    public String name;
+    public String price;
+    public String brand;
+    public String description;
+    public String category;
 
-    public Product(int id, String title) {
+    public Product(int id, String name, String price, String brand, String description, String category) {
         this.id = id;
-        this.title = title;
+        this.name = name != null ? name : "";
+        this.brand = brand != null ? brand : "";
+        this.description = description != null ? description : "";
+        this.category = category != null ? category : "";
+        this.price = price;
     }
 }

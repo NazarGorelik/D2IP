@@ -6,21 +6,22 @@ import org.example.model.Product;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Main {
     public static List<Product> loadProducts(String filePath) throws Exception {
         List<Product> products = new ArrayList<>();
-        try (BufferedReader reader = new BufferedReader(new FileReader("src/main/resources/dataset_2/Z2.csv"))) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
             reader.readLine(); // Skip header
             while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(",", 2); // only split on first comma
-                if (parts.length < 2) continue;
+                String[] parts = line.split(",", 6);
+                if (parts.length < 6){
+                    continue;
+                }
                 try {
-                    products.add(new Product(Integer.parseInt(parts[0].trim()), parts[1].trim()));
+                    products.add(new Product(Integer.parseInt(parts[0].trim()), parts[1].trim(), parts[2].trim(),
+                            parts[3].trim(), parts[4].trim(), parts[5].trim()));
                 } catch (NumberFormatException e) {
                     continue;
                 }
@@ -30,22 +31,23 @@ public class Main {
     }
 
     public static List<Pair> loadGroundTruth(String filePath) throws Exception {
-        List<Pair> gt = new ArrayList<>();
+        Set<Pair> gtSet = new HashSet<>();
         try (CSVReader reader = new CSVReader(new FileReader(filePath))) {
-            reader.readNext();
+            reader.readNext(); // Skip header
             String[] line;
             while ((line = reader.readNext()) != null) {
-                int id1 = Integer.parseInt(line[0]);
-                int id2 = Integer.parseInt(line[1]);
+                int id1 = Integer.parseInt(line[0].trim());
+                int id2 = Integer.parseInt(line[1].trim());
+
                 if (id1 != id2) {
-                    int tmp = id1;
-                    id1 = id2;
-                    id2 = tmp;
+                    // Ensure consistent ordering (id1 < id2)
+                    int minId = Math.min(id1, id2);
+                    int maxId = Math.max(id1, id2);
+                    gtSet.add(new Pair(minId, maxId));
                 }
-                gt.add(new Pair(id1, id2));
             }
         }
-        return gt;
+        return new ArrayList<>(gtSet);
     }
 
     public static void main(String[] args) throws Exception {
