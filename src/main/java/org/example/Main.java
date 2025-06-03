@@ -1,21 +1,25 @@
 package org.example;
 
 import com.opencsv.CSVReader;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.csv.CSVRecord;
 import org.example.model.Pair;
 import org.example.model.Product;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class Main {
-    public static List<Product> loadProducts(String filePath) throws Exception {
+    public static List<Product> loadProducts(InputStream stream) throws Exception {
         List<Product> products = new ArrayList<>();
-        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
             String line;
             reader.readLine(); // Skip header
             while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(",", 6);
+                String[] parts = line.split("\t\t", -1);
                 if (parts.length < 6){
                     continue;
                 }
@@ -51,7 +55,9 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        List<Product> products = loadProducts("src/main/resources/dataset_2/Z2.csv");
+        InputStream stream = CsvConverter.convertCsvToDoubleTabStream("src/main/resources/dataset_2/Z2.csv");
+        List<Product> products = loadProducts(stream);
+        cleanProductNames(products);
         List<Pair> groundTruth = loadGroundTruth("src/main/resources/dataset_2/ZY2.csv");
 
         long start = System.currentTimeMillis();
@@ -63,5 +69,19 @@ public class Main {
         System.out.println("------------- Evaluation -------------");
         System.out.printf("Runtime: %.2f seconds\n", (end - start) / 1000.0);
         Evaluator.evaluate(matches, groundTruth);
+    }
+
+    public static void cleanProductNames(List<Product> products) {
+        for (Product p : products) {
+            if (p.name != null) {
+                // Keep letters, digits, and spaces only
+                String cleaned = p.name
+                        .toLowerCase()
+                        .replaceAll("[^a-z0-9 ]", "")   // <-- space is preserved!
+                        .replaceAll("\\s+", " ")        // normalize multiple spaces
+                        .trim();
+                p.name = cleaned;
+            }
+        }
     }
 }
