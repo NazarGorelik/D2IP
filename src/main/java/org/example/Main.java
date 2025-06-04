@@ -1,15 +1,13 @@
 package org.example;
 
 import com.opencsv.CSVReader;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVPrinter;
-import org.apache.commons.csv.CSVRecord;
 import org.example.model.Pair;
 import org.example.model.Product;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.*;
 
 public class Main {
@@ -55,9 +53,11 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        InputStream stream = CsvConverter.convertCsvToDoubleTabStream("src/main/resources/dataset_2/Z2.csv");
+        // generates input stream with double tab as a delimiter between columns
+        InputStream stream = CsvConverter.convertCsvToDoubleTabStream("src/main/resources/dataset_2/Z2_test.csv");
         List<Product> products = loadProducts(stream);
-        cleanProductNames(products);
+        // clean product names and brands from weird characters
+        cleanProductNamesAndBrands(products);
         List<Pair> groundTruth = loadGroundTruth("src/main/resources/dataset_2/ZY2.csv");
 
         long start = System.currentTimeMillis();
@@ -71,17 +71,28 @@ public class Main {
         Evaluator.evaluate(matches, groundTruth);
     }
 
-    public static void cleanProductNames(List<Product> products) {
+    public static void cleanProductNamesAndBrands(List<Product> products) {
         for (Product p : products) {
             if (p.name != null) {
                 // Keep letters, digits, and spaces only
-                String cleaned = p.name
-                        .toLowerCase()
-                        .replaceAll("[^a-z0-9 ]", "")   // <-- space is preserved!
-                        .replaceAll("\\s+", " ")        // normalize multiple spaces
-                        .trim();
-                p.name = cleaned;
+                String cleanedName = CleanString(p.name);
+                p.name = cleanedName;
+            }
+            if (p.brand != null) {
+                // Keep letters, digits, and spaces only
+                String[] cleanedBrands = CleanString(p.brand).trim().split("\\s+");
+                p.brand = cleanedBrands[0];
             }
         }
+    }
+
+    private static String CleanString(String word){
+        String cleaned = word
+                .toLowerCase()
+                .replaceAll("[^a-z0-9 ]", "")   // <-- space is preserved!
+                .replaceAll("\\s+", " ")        // normalize multiple spaces
+                .trim();
+
+        return cleaned;
     }
 }

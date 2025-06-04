@@ -4,30 +4,28 @@ import org.apache.commons.text.similarity.LevenshteinDistance;
 import org.example.model.Pair;
 import org.example.model.Product;
 
-import java.io.Console;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class Matcher {
-
-    public enum SimilarityType {
-        COMBINED
-    }
 
     public static List<Pair> generateMatches(Map<String, List<Integer>> blocks, List<Product> products, double threshold) {
         List<Pair> candidatePairs = new ArrayList<>();
         Set<Pair> seenPairs = new HashSet<>();
-
+        Map<Integer, Product> productById = products.stream()
+                .collect(Collectors.toMap(p -> p.id, p -> p));
+        int count = 0;
         for (List<Integer> rowIds : blocks.values()) {
-            if (rowIds.size() < 100) {
+            if(rowIds.size() <= 1000) {
                 for (int i = 0; i < rowIds.size(); i++) {
                     for (int j = i + 1; j < rowIds.size(); j++) {
-                        Product p1 = products.get(rowIds.get(i));
-                        Product p2 = products.get(rowIds.get(j));
+                        Product p1 = productById.get(rowIds.get(i));
+                        Product p2 = productById.get(rowIds.get(j));
 
                         double jaccardSimilarity = jaccardSimilarity(p1, p2);
                         if (jaccardSimilarity < 0.2) continue; // skip clearly dissimilar
 
-                        double sim = 0.7 * jaccardSimilarity(p1, p2) + 0.3 * levenshteinSimilarity(p1, p2);
+                        double sim = 0.6 * jaccardSimilarity(p1, p2) + 0.4 * levenshteinSimilarity(p1, p2);
 
                         if (sim >= threshold) {
                             int id1 = Math.min(p1.id, p2.id);
@@ -39,6 +37,7 @@ public class Matcher {
                         }
                     }
                 }
+                System.out.println(++count);
             }
         }
 
