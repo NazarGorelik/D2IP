@@ -54,7 +54,7 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
         // generates input stream with double tab as a delimiter between columns
-        InputStream stream = CsvConverter.convertCsvToDoubleTabStream("src/main/resources/dataset_2/Z2_test.csv");
+        InputStream stream = CsvConverter.convertCsvToDoubleTabStream("src/main/resources/dataset_2/Z2.csv");
         List<Product> products = loadProducts(stream);
         // clean product names and brands from weird characters
         cleanProductNamesAndBrands(products);
