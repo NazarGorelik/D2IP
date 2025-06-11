@@ -61,6 +61,7 @@ public class Main {
         List<Pair> groundTruth = loadGroundTruth("src/main/resources/dataset_2/ZY2.csv");
 
         long start = System.currentTimeMillis();
+/*
         //generate blocks with similar pattern
         Map<String, List<Integer>> blocks = Blocker.createBlocks(products);
         List<Pair> matches = Matcher.generateMatches(blocks, products, 0.5);
@@ -68,6 +69,50 @@ public class Main {
 
         System.out.println("------------- Evaluation -------------");
         System.out.printf("Runtime: %.2f seconds\n", (end - start) / 1000.0);
+        Evaluator.evaluate(matches, groundTruth);*/
+        // 1) Multi-Pass Blocking: erstelle verschiedene Block-Maps
+      /*  Map<String, List<Integer>> passA = Blocker.blockByPriceBrand(products);
+        Map<String, List<Integer>> passB = Blocker.blockByBrandType(products);
+        Map<String, List<Integer>> passC = Blocker.blockByBrandSize(products);
+        Map<String, List<Integer>> passD = Blocker.blockByTypeSize(products);
+        Map<String, List<Integer>> passE = Blocker.blockByFirstToken(products);
+
+        // 2) Für jeden Pass Matches generieren und in einem Set sammeln
+        Set<Pair> allMatches = new HashSet<>();
+        double threshold = 0.5;
+        allMatches.addAll(Matcher.generateMatches(passA, products, threshold));
+        allMatches.addAll(Matcher.generateMatches(passB, products, threshold));
+        allMatches.addAll(Matcher.generateMatches(passC, products, threshold));
+        allMatches.addAll(Matcher.generateMatches(passD, products, threshold));
+        allMatches.addAll(Matcher.generateMatches(passE, products, threshold));
+
+        List<Pair> finalMatches = new ArrayList<>(allMatches);
+        long end = System.currentTimeMillis();
+       */
+        Map<String, List<Integer>> blocks =
+                Blocker.blockByBrandTypeSize(products);
+
+        // Calculate total size of all blocks
+        int totalBlockEntries = 0;
+        int grosseblöcke = 0;
+        for (List<Integer> ids : blocks.values()) {
+            if (ids.size() > 1000) {++grosseblöcke;}
+            totalBlockEntries += ids.size();
+        }
+        System.out.println("Total block entries: " + totalBlockEntries);
+        System.out.println("Total number of large blocks: " + grosseblöcke);
+
+
+        // Generate matches based on these blocks
+        double threshold = 0.5;
+        List<Pair> matches =
+                Matcher.generateMatches(blocks, products, threshold);
+
+        long end = System.currentTimeMillis();
+
+
+        System.out.println("------------- Evaluation -------------");
+        System.out.printf("Runtime: %.2f seconds\n", (end - start)/1000.0);
         Evaluator.evaluate(matches, groundTruth);
     }
 

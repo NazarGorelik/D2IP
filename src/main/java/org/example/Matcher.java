@@ -8,13 +8,14 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class Matcher {
-
+    static int paircount = 0;
     public static List<Pair> generateMatches(Map<String, List<Integer>> blocks, List<Product> products, double threshold) {
         List<Pair> candidatePairs = new ArrayList<>();
         Set<Pair> seenPairs = new HashSet<>();
         Map<Integer, Product> productById = products.stream()
                 .collect(Collectors.toMap(p -> p.id, p -> p));
         int count = 0;
+
         for (List<Integer> rowIds : blocks.values()) {
             if(rowIds.size() <= 1000) {
                 for (int i = 0; i < rowIds.size(); i++) {
@@ -33,11 +34,49 @@ public class Matcher {
                             Pair pair = new Pair(id1, id2);
                             if (seenPairs.add(pair)) {
                                 candidatePairs.add(pair);
+                                paircount++;
                             }
                         }
                     }
                 }
+                System.out.println("Gefundene Matches: " + paircount);
                 System.out.println(++count);
+            }
+            else {
+                // 1) Große Blöcke in drei Preis-Sub-Blöcke unterteilen:
+                Map<String, List<Integer>> priceBuckets = new HashMap<>();
+                for (Integer id : rowIds) {
+                    Product p = productById.get(id);
+                    Blocker b = new Blocker();
+                    String bucket = b.detectPriceWindow(p); // cheap, mid, expensive
+                    priceBuckets.computeIfAbsent(bucket, k -> new ArrayList<>()).add(id);
+                }
+                // 2) Dann wieder wie gewohnt innerhalb dieser Sub-Blöcke matchen:
+                for (List<Integer> subIds : priceBuckets.values()) {
+                    if (subIds.size() <= 1000) {
+                        for (int i = 0; i < subIds.size(); i++) {
+                            for (int j = i + 1; j < subIds.size(); j++) {
+                                Product p1 = productById.get(subIds.get(i));
+                                Product p2 = productById.get(subIds.get(j));
+                                double jacc0 = jaccardSimilarity(p1, p2);
+                                if (jacc0 < 0.2) continue;
+                                double sim = 0.6 * jacc0 + 0.4 * levenshteinSimilarity(p1, p2);
+                                if (sim >= threshold) {
+                                    int id1 = Math.min(p1.id, p2.id);
+                                    int id2 = Math.max(p1.id, p2.id);
+                                    Pair pair = new Pair(id1, id2);
+                                    if (seenPairs.add(pair)) {
+                                        candidatePairs.add(pair);
+                                        paircount++;
+                                    }
+                                }
+                            }
+                        }
+                        System.out.println("Gefundene Matches: " + paircount);
+                        System.out.println(++count);
+                    }
+                }
+
             }
         }
 

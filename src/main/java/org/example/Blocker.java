@@ -20,110 +20,453 @@ public class Blocker {
     private static final List<Integer> MEMORY_SIZES = Arrays.asList(
             4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048
     );
+    private static final Pattern GB_PATTERN = Pattern.compile("\\b(\\d{1,4})\\s*gb\\b");
 
-    public static Map<String, List<Integer>> createBlocks(List<Product> products) {
-        Map<String, List<Integer>> layeredBlocks = new HashMap<>();
-        // block by brand
-        Map<String, List<Product>> brandBlocks = Blocker.blockByBrand(products);
-        // assign elements with no brand to some brand based on element's name
-        reassignMissingBrandsByName(brandBlocks);
 
-        Map<String, List<Product>> layeredBlocksTest = new HashMap<>();
-
-        for (Map.Entry<String, List<Product>> entry : brandBlocks.entrySet()) {
-            String brandKey = entry.getKey();
-
-            for (Product p : entry.getValue()) {
-                // block by storage type
-                String storageType = detectStorageType(p);
-                // block by memory size
-                String memorySize = detectMemorySize(p);
-
-                String blockKey = brandKey + "_" + storageType + "_" + memorySize;
-                layeredBlocks.computeIfAbsent(blockKey, k -> new ArrayList<>()).add(p.id);
-                layeredBlocksTest.computeIfAbsent(blockKey, k -> new ArrayList<>()).add(p);
-            }
+    // Pass A: Brand + StorageType + MemorySize
+    public static Map<String,List<Integer>> blockByBrandTypeSize(List<Product> prods) {
+        Map<String,List<Integer>> blocks = new HashMap<>();
+        for (Product p : prods) {
+            String brand = normalize(p.brand);
+            String type = detectStorageType(p);
+            String size = detectMemorySize(p);
+            String key = brand + "_" + type + "_" + size;
+            blocks.computeIfAbsent(key, k -> new ArrayList<>()).add(p.id);
         }
-        return layeredBlocks;
+        return blocks;
+    }
+
+    // Pass B: Preis-Bucket (100er) + Marke
+    public static Map<String,List<Integer>> blockByPriceBrand(List<Product> prods) {
+        Map<String,List<Integer>> blocks = new HashMap<>();
+        for (Product p : prods) {
+            String bucket = detectPriceBucket(p);
+            String brand = normalize(p.brand);
+            String key = bucket + "_" + brand;
+            blocks.computeIfAbsent(key, k -> new ArrayList<>()).add(p.id);
+        }
+        return blocks;
+    }
+
+    // Optional additional passes
+    public static Map<String,List<Integer>> blockByBrandType(List<Product> prods) {
+        Map<String,List<Integer>> blocks = new HashMap<>();
+        for (Product p : prods) {
+            String brand = normalize(p.brand);
+            String type  = detectStorageType(p);
+            String key = brand + "_" + type;
+            blocks.computeIfAbsent(key, k -> new ArrayList<>()).add(p.id);
+        }
+        return blocks;
+    }
+
+    public static Map<String,List<Integer>> blockByBrandSize(List<Product> prods) {
+        Map<String,List<Integer>> blocks = new HashMap<>();
+        for (Product p : prods) {
+            String brand = normalize(p.brand);
+            String size  = detectMemorySize(p);
+            String key = brand + "_" + size;
+            blocks.computeIfAbsent(key, k -> new ArrayList<>()).add(p.id);
+        }
+        return blocks;
+    }
+
+    public static Map<String,List<Integer>> blockByTypeSize(List<Product> prods) {
+        Map<String,List<Integer>> blocks = new HashMap<>();
+        for (Product p : prods) {
+            String type = detectStorageType(p);
+            String size = detectMemorySize(p);
+            String key = type + "_" + size;
+            blocks.computeIfAbsent(key, k -> new ArrayList<>()).add(p.id);
+        }
+        return blocks;
+    }
+
+    public static Map<String,List<Integer>> blockByFirstToken(List<Product> prods) {
+        Map<String,List<Integer>> blocks = new HashMap<>();
+        for (Product p : prods) {
+            String token = p.name.toLowerCase()
+                    .replaceAll("[^a-z0-9 ]"," ")
+                    .split("\\s+")[0];
+            blocks.computeIfAbsent(token, k -> new ArrayList<>()).add(p.id);
+        }
+        return blocks;
+    }
+
+    
+    private static String detectPriceBucket(Product p) {
+        String str = p.price != null
+                ? p.price.replaceAll("[^0-9.,]","").replace(',','.')
+                : "";
+        try {
+            double pr = Double.parseDouble(str);
+            int b = (int)(pr/100);
+            return (b*100) + "-" + (b*100+99);
+        } catch (Exception e) {
+            return "unknown";
+        }
+    }
+
+    public static String detectPriceWindow(Product p) {
+        String str = p.price != null
+                ? p.price.replaceAll("[^0-9.,]", "").replace(',', '.')
+                : "";
+        try {
+            double pr = Double.parseDouble(str);
+            if (pr <= 15.99) return "cheap";
+            if (pr <= 99.99) return "mid";
+            return "expensive";
+        } catch (NumberFormatException e) {
+            return "unknown";
+        }
+    }
+
+
+
+    private static String normalize(String s) {
+        if (s == null) return "";
+        String b = s.toLowerCase().trim();
+        return BRANDS.contains(b) ? b : "";
     }
 
     private static String detectStorageType(Product p) {
-        String text = (p.name + " " + p.description).toLowerCase();
-        for (String type : STORAGE_TYPES) {
-            if (text.contains(type)) {
-                return type.replace(" ", ""); // e.g., "micro sd" → "microsd"
+        String txt = (p.name + " " + p.description).toLowerCase();
+        for (String t : STORAGE_TYPES) {
+            // \b ensures matching whole words, so 'sd' won't match inside 'sdxc'
+            Pattern pat = Pattern.compile("\\b" + Pattern.quote(t) + "\\b");
+            if (pat.matcher(txt).find()) {
+                return t.replace(" ", "");
             }
         }
         return "unknown";
     }
 
-    public static Map<String, List<Product>> blockByBrand(List<Product> products) {
-        Map<String, List<Product>> brandBlocks = new HashMap<>();
-
-        for (Product p : products) {
-            String brand = normalize(p.brand);
-            String blockKey = BRANDS.contains(brand) ? brand : "";
-            brandBlocks.computeIfAbsent(blockKey, k -> new ArrayList<>()).add(p);
+    private static String detectMemorySize(Product p) {
+        String txt = (p.name + " " + p.description).toLowerCase();
+        Matcher m = GB_PATTERN.matcher(txt);
+        if (m.find()) return m.group(1);
+        for (int sz : MEMORY_SIZES) {
+            if (txt.contains(String.valueOf(sz))) return String.valueOf(sz);
         }
+        return "unknown";
+    }
+}
 
-        return brandBlocks;
+    /*// Pass A: Preis-Bucket (100er) + Marke
+    public static Map<String,List<Integer>> blockByPriceBrand(List<Product> prods) {
+        Map<String,List<Integer>> blocks = new HashMap<>();
+        for (Product p:prods) {
+            String bucket = detectPriceBucket(p);
+            String brand = normalize(p.brand);
+            String key = bucket + "_" + brand;
+            blocks.computeIfAbsent(key, k->new ArrayList<>()).add(p.id);
+        }
+        return blocks;
+    }
+
+    // Pass B: Marke + StorageType
+    public static Map<String,List<Integer>> blockByBrandType(List<Product> prods) {
+        Map<String,List<Integer>> blocks = new HashMap<>();
+        for (Product p:prods) {
+            String brand = normalize(p.brand);
+            String type  = detectStorageType(p);
+            String key = brand + "_" + type;
+            blocks.computeIfAbsent(key, k->new ArrayList<>()).add(p.id);
+        }
+        return blocks;
+    }
+
+    // Pass C: Marke + Speichergröße
+    public static Map<String,List<Integer>> blockByBrandSize(List<Product> prods) {
+        Map<String,List<Integer>> blocks = new HashMap<>();
+        for (Product p:prods) {
+            String brand = normalize(p.brand);
+            String size  = detectMemorySize(p);
+            String key = brand + "_" + size;
+            blocks.computeIfAbsent(key, k->new ArrayList<>()).add(p.id);
+        }
+        return blocks;
+    }
+
+    // Pass D: StorageType + Speichergröße
+    public static Map<String,List<Integer>> blockByTypeSize(List<Product> prods) {
+        Map<String,List<Integer>> blocks = new HashMap<>();
+        for (Product p:prods) {
+            String type = detectStorageType(p);
+            String size = detectMemorySize(p);
+            String key = type + "_" + size;
+            blocks.computeIfAbsent(key, k->new ArrayList<>()).add(p.id);
+        }
+        return blocks;
+    }
+
+    // Pass E: Erstes Namens-Token
+    public static Map<String,List<Integer>> blockByFirstToken(List<Product> prods) {
+        Map<String,List<Integer>> blocks = new HashMap<>();
+        for (Product p:prods) {
+            String token = p.name.toLowerCase()
+                    .replaceAll("[^a-z0-9 ]"," ")
+                    .split("\\s+")[0];
+            blocks.computeIfAbsent(token, k->new ArrayList<>()).add(p.id);
+        }
+        return blocks;
+    }
+
+    // Helpers:
+
+    private static String detectPriceBucket(Product p) {
+        String str = p.price!=null
+                ? p.price.replaceAll("[^0-9.,]","").replace(',','.')
+                : "";
+        try {
+            double pr = Double.parseDouble(str);
+            int b = (int)(pr/100);
+            return (b*100) + "-" + (b*100+99);
+        } catch(Exception e) {
+            return "unknown";
+        }
     }
 
     private static String normalize(String s) {
-        if (s == null) return "";
-        return s.toLowerCase().trim(); // strip punctuation & unify casing
+        if (s==null) return "";
+        s = s.toLowerCase().trim();
+        return BRANDS.contains(s) ? s : "";
     }
 
-    public static void reassignMissingBrandsByName(Map<String, List<Product>> brandBlocks) {
-        List<Product> noBrandProducts = brandBlocks.getOrDefault("", new ArrayList<>());
-        Map<String, List<Product>> updatedBlocks = new HashMap<>(brandBlocks);
-        updatedBlocks.remove(""); // We'll re-add leftovers if needed
-
-        Set<String> knownBrands = brandBlocks.keySet()
-                .stream()
-                .filter(b -> !b.isEmpty())
-                .map(String::toLowerCase)
-                .collect(Collectors.toSet());
-
-        for (Product p : noBrandProducts) {
-            String nameLower = p.name.toLowerCase();
-            boolean reassigned = false;
-
-            for (String brand : knownBrands) {
-                if (nameLower.contains(brand)) {
-                    updatedBlocks.get(brand).add(p);
-                    reassigned = true;
-                    break;
-                }
-            }
-
-            if (!reassigned) {
-                updatedBlocks.computeIfAbsent("", k -> new ArrayList<>()).add(p);
-            }
+    private static String detectStorageType(Product p) {
+        String txt = (p.name+" "+p.description).toLowerCase();
+        for (String t:STORAGE_TYPES) {
+            if (txt.contains(t)) return t.replace(" ","");
         }
-
-        // Update original blocks map
-        brandBlocks.clear();
-        brandBlocks.putAll(updatedBlocks);
+        return "unknown";
     }
 
     private static String detectMemorySize(Product p) {
-        String content = (p.name + " " + p.description).toLowerCase();
+        String txt = (p.name+" "+p.description).toLowerCase();
+        Matcher m = GB_PATTERN.matcher(txt);
+        if (m.find()) return m.group(1);
+        for (int sz:MEMORY_SIZES) {
+            if (txt.contains(String.valueOf(sz))) return String.valueOf(sz);
+        }
+        return "unknown";
+    }
+}*/
+    /*
+    public static Map<String, List<Integer>> createBlocks(List<Product> products) {
 
-        // First try to extract patterns like 32gb
+
+        Map<String, List<Integer>> blocks = new HashMap<>();
+
+        for (Product p : products) {
+            String priceBucket = detectPriceBucket(p);
+            String brandKey = normalize(p.brand);
+            String storageType = detectStorageType(p);
+            String memorySize = detectMemorySize(p);
+
+            String blockKey = String.join("_", priceBucket, brandKey, storageType, memorySize);
+            blocks.computeIfAbsent(blockKey, k -> new ArrayList<>()).add(p.id);
+        }
+
+        return blocks;
+    }
+
+    /**
+     * Determines the 100€ interval for the product price.
+     * Buckets: 0-99, 100-199, 200-299, ...
+     *
+    private static String detectPriceBucket(Product p) {
+        String priceStr = p.price != null ? p.price.replaceAll("[^0-9.,]", "").replace(',', '.') : "";
+        try {
+            double price = Double.parseDouble(priceStr);
+            int bucket = (int) (price / 100);
+            int low = bucket * 100;
+            int high = low + 99;
+            return low + "-" + high;
+        } catch (NumberFormatException e) {
+            return "unknown";
+        }
+    }
+
+    /**
+     * Detects storage type by checking known keywords in name+description.
+     *
+    private static String detectStorageType(Product p) {
+        String text = (p.name + " " + p.description).toLowerCase();
+        for (String type : STORAGE_TYPES) {
+            if (text.contains(type)) {
+                return type.replace(" ", "");
+            }
+        }
+        return "unknown";
+    }
+
+    /**
+     * Detects memory size by regex for 'xxgb' or fallback search in known sizes.
+     *
+    private static String detectMemorySize(Product p) {
+        String content = (p.name + " " + p.description).toLowerCase();
         Pattern pattern = Pattern.compile("\\b(\\d{1,4})\\s*gb\\b");
         Matcher matcher = pattern.matcher(content);
         if (matcher.find()) {
             return matcher.group(1);
         }
-
-        // Fallback: just search for any number matching known sizes
         for (int size : MEMORY_SIZES) {
             if (content.contains(String.valueOf(size))) {
                 return String.valueOf(size);
             }
         }
-
         return "unknown";
     }
+
+    /**
+     * Normalizes brand string to lowercase and trims, empty if null or not known.
+     *
+    private static String normalize(String s) {
+        if (s == null) return "";
+        String b = s.toLowerCase().trim();
+        return BRANDS.contains(b) ? b : "";
+    }
 }
+
+
+     */
+
+    /*public static Map<String, List<Integer>> createBlocks(List<Product> products) {
+        Map<String, List<Integer>> blocks = new HashMap<>();
+
+        // 1) Assign each product to a price-bucket + brand block
+        for (Product p : products) {
+            String priceBucket = detectPriceBucket(p);
+            String brandKey = normalize(p.brand);
+            String blockKey = priceBucket + "_" + brandKey;
+
+            blocks.computeIfAbsent(blockKey, k -> new ArrayList<>()).add(p.id);
+        }
+
+        return blocks;
+    }
+
+    /**
+     * Determines the 10€ interval for the product price.
+     * Buckets: 0-9, 10-19, 20-29, ...
+     *
+    private static String detectPriceBucket(Product p) {
+        String priceStr = p.price != null ? p.price.replaceAll("[^0-9.,]", "").replace(',', '.') : "";
+        try {
+            double price = Double.parseDouble(priceStr);
+            int bucket = (int) (price / 10);
+            int low = bucket * 10;
+            int high = low + 9;
+            return low + "-" + high;
+        } catch (NumberFormatException e) {
+            return "unknown";
+        }
+    }
+
+    /**
+     * Normalizes a brand string: lowercase, trimmed, empty if null.
+     *
+    private static String normalize(String s) {
+        if (s == null) return "";
+        return s.toLowerCase().trim();
+    }
+}
+
+     */
+
+    /*public static Map<String, List<Integer>> createBlocks(List<Product> products) {
+        Map<String, List<Integer>> layeredBlocks = new HashMap<>();
+
+        // 1) Block by brand
+        Map<String, List<Product>> brandBlocks = blockByBrand(products);
+        // 2) Reassign missing brands based on name
+        reassignMissingBrandsByName(brandBlocks);
+
+        // 3) For each brand block, further subdivide by memory size
+        for (Map.Entry<String, List<Product>> entry : brandBlocks.entrySet()) {
+            String brandKey = entry.getKey();
+            for (Product p : entry.getValue()) {
+                String memorySize = detectMemorySize(p);
+                String blockKey = brandKey + "_" + memorySize;
+                layeredBlocks
+                        .computeIfAbsent(blockKey, k -> new ArrayList<>())
+                        .add(p.id);
+            }
+        }
+
+        return layeredBlocks;
+    }
+
+    /**
+     * Extracts memory size from product name or description.
+     *
+    private static String detectMemorySize(Product p) {
+        String content = (p.name + " " + p.description).toLowerCase();
+        // Try pattern like '32gb'
+        Pattern pattern = Pattern.compile("\\b(\\d{1,4})\\s*gb\\b");
+        Matcher matcher = pattern.matcher(content);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        // Fallback: search known sizes
+        for (int size : MEMORY_SIZES) {
+            if (content.contains(String.valueOf(size))) {
+                return String.valueOf(size);
+            }
+        }
+        return "unknown";
+    }
+
+    /**
+     * Groups products by normalized brand key (empty for unknown).
+     *
+    public static Map<String, List<Product>> blockByBrand(List<Product> products) {
+        Map<String, List<Product>> brandBlocks = new HashMap<>();
+        for (Product p : products) {
+            String brand = normalize(p.brand);
+            String blockKey = BRANDS.contains(brand) ? brand : "";
+            brandBlocks
+                    .computeIfAbsent(blockKey, k -> new ArrayList<>())
+                    .add(p);
+        }
+        return brandBlocks;
+    }
+
+    private static String normalize(String s) {
+        if (s == null) return "";
+        return s.toLowerCase().trim();
+    }
+
+    /**
+     * Reassigns products with missing brand to existing brand blocks based on product name.
+     *
+    public static void reassignMissingBrandsByName(Map<String, List<Product>> brandBlocks) {
+        List<Product> noBrand = brandBlocks.getOrDefault("", new ArrayList<>());
+        Map<String, List<Product>> updated = new HashMap<>(brandBlocks);
+        updated.remove("");
+
+        Set<String> known = brandBlocks.keySet().stream()
+                .filter(b -> !b.isEmpty())
+                .collect(Collectors.toSet());
+
+        for (Product p : noBrand) {
+            String nameLower = p.name.toLowerCase();
+            boolean reassigned = false;
+            for (String brand : known) {
+                if (nameLower.contains(brand)) {
+                    updated.get(brand).add(p);
+                    reassigned = true;
+                    break;
+                }
+            }
+            if (!reassigned) {
+                updated.computeIfAbsent("", k -> new ArrayList<>()).add(p);
+            }
+        }
+
+        brandBlocks.clear();
+        brandBlocks.putAll(updated);
+    }
+}
+
+     */
