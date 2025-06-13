@@ -19,7 +19,7 @@ public class Blocker {
             "xqd", "compactflash", "micro sd", "microsd", "sdxc", "sdhc", "usb", "ssd", "hdd", "sd", "cd"
     );
     private static final List<Integer> MEMORY_SIZES = Arrays.asList(
-            4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048
+            2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4
     );
 
     /**
@@ -31,11 +31,15 @@ public class Blocker {
         for (Product p : products) {
             String brand = blockByBrand(p);
             String type = detectStorageType(p);
-            String size = detectMemorySize(p);
+//            String size = detectMemorySize(p);
+            String size = detectMemorySizeBasedOnEnum(p);
             String key = String.join("_", brand, type, size);
             blocks.computeIfAbsent(key, k -> new ArrayList<>()).add(p.id);
             blocksTest.computeIfAbsent(key, k -> new ArrayList<>()).add(p);
         }
+        // remove blocks with only one element
+        blocks.entrySet().removeIf(entry -> entry.getValue().size() < 2);
+        blocksTest.entrySet().removeIf(entry -> entry.getValue().size() < 2);
         return blocks;
     }
 
@@ -82,60 +86,75 @@ public class Blocker {
      * wichtig hier schliesse konstrukte wie 2.0 gb aus
      *
      */
-    private static String detectMemorySize(Product p) {
-        String text = (p.name + " " + p.description).toLowerCase();
-        StringTokenizer st = new StringTokenizer(text);
-        String prev = null;
+//    private static String detectMemorySize(Product p) {
+//        String text = (p.name + " " + p.description).toLowerCase();
+//        StringTokenizer st = new StringTokenizer(text);
+//        String prev = null;
+//
+//        while (st.hasMoreTokens()) {
+//            String token = st.nextToken().trim();
+//            if (token.isEmpty()) {
+//                prev = token;
+//                continue;
+//            }
+//            String lower = token.toLowerCase();
+//            // Erster Fall: gb ohne leerzeichen
+//            if (lower.endsWith("gb")) {
+//                String num = lower.substring(0, lower.length() - 2);
+//                // Skip floats like "2.0"
+//                if (!num.contains(".") && !num.contains(",")) {
+//                    boolean digitsOnly = true;
+//                    for (char c : num.toCharArray()) {
+//                        if (!Character.isDigit(c)) {
+//                            digitsOnly = false;
+//                            break;
+//                        }
+//                    }
+//                    if (digitsOnly && !num.isEmpty()) {
+//                        return num;
+//                    }
+//                }
+//            }
+//            // hier gibt es ein leerzeichen
+//            if ("gb".equals(lower) && prev != null) {
+//                String num = prev;
+//                if (!num.contains(".") && !num.contains(",")) {
+//                    boolean digitsOnly = true;
+//                    for (char c : num.toCharArray()) {
+//                        if (!Character.isDigit(c)) {
+//                            digitsOnly = false;
+//                            break;
+//                        }
+//                    }
+//                    if (digitsOnly && !num.isEmpty()) {
+//                        return num;
+//                    }
+//                }
+//            }
+//            prev = lower;
+//        }
+//
+//        return detectMemorySizeBasedOnEnum(text);
+//    }
 
-        while (st.hasMoreTokens()) {
-            String token = st.nextToken().trim();
-            if (token.isEmpty()) {
-                prev = token;
-                continue;
-            }
-            String lower = token.toLowerCase();
-            // Erster Fall: gb ohne leerzeichen
-            if (lower.endsWith("gb")) {
-                String num = lower.substring(0, lower.length() - 2);
-                // Skip floats like "2.0"
-                if (!num.contains(".") && !num.contains(",")) {
-                    boolean digitsOnly = true;
-                    for (char c : num.toCharArray()) {
-                        if (!Character.isDigit(c)) {
-                            digitsOnly = false;
-                            break;
-                        }
-                    }
-                    if (digitsOnly && !num.isEmpty()) {
-                        return num;
-                    }
-                }
-            }
-            // hier gibt es ein leerzeichen
-            if ("gb".equals(lower) && prev != null) {
-                String num = prev;
-                if (!num.contains(".") && !num.contains(",")) {
-                    boolean digitsOnly = true;
-                    for (char c : num.toCharArray()) {
-                        if (!Character.isDigit(c)) {
-                            digitsOnly = false;
-                            break;
-                        }
-                    }
-                    if (digitsOnly && !num.isEmpty()) {
-                        return num;
-                    }
-                }
-            }
-            prev = lower;
-        }
-        // gibt es in unserer liste die size
+    private static String detectMemorySizeBasedOnEnum(Product p){
+        String text = p.name + " " + p.description.toLowerCase();
+        List<String> words = Arrays.asList(text.split(" "));
         for (int sz : MEMORY_SIZES) {
-            String marker = sz + "gb";
-            if (text.contains(marker)) {
+            // split by space and check if word is equal to memory_size. otherwise unknown
+            if (words.contains(String.valueOf(sz))) {
                 return String.valueOf(sz);
             }
         }
+
+        // check if memory size is concatenated with other words. "sun64samsung" -> 64 gb
+        for (int sz : MEMORY_SIZES) {
+            // split by space and check if word is equal to memory_size. otherwise unknown
+            if (text.contains(String.valueOf(sz))) {
+                return String.valueOf(sz);
+            }
+        }
+
         return "unknown";
     }
 
