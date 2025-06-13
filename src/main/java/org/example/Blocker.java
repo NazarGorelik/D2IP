@@ -27,15 +27,40 @@ public class Blocker {
      */
     public static Map<String, List<Integer>> createBlocks(List<Product> products) {
         Map<String, List<Integer>> blocks = new HashMap<>();
+        Map<String, List<Product>> blocksTest = new HashMap<>();
         for (Product p : products) {
-            String brand = normalize(p.brand);
+            String brand = blockByBrand(p);
             String type = detectStorageType(p);
             String size = detectMemorySize(p);
             String key = String.join("_", brand, type, size);
             blocks.computeIfAbsent(key, k -> new ArrayList<>()).add(p.id);
+            blocksTest.computeIfAbsent(key, k -> new ArrayList<>()).add(p);
         }
         return blocks;
     }
+
+    public static String blockByBrand(Product product) {
+        String brand = product.brand;
+        String blockKey = BRANDS.contains(brand) ? brand : "";
+
+        if(blockKey.isEmpty()) {
+            blockKey = reassignMissingBrandsByName(product.name);
+        }
+        return blockKey;
+    }
+
+    /**
+     * Reassigns products with missing brand to existing brand blocks based on product name.
+     *
+     **/
+     public static String reassignMissingBrandsByName(String name) {
+         for(String knownBrand : BRANDS) {
+             if(name.contains(knownBrand)) {
+                 return knownBrand;
+             }
+         }
+         return "unknown";
+     }
 
     /**
      * Detects storage type using word boundaries; checks rarer types first
@@ -114,15 +139,6 @@ public class Blocker {
         return "unknown";
     }
 
-    /**
-     * Normalisiere die Brand sprich klein und sonderzeichen entfernen
-     *
-     */
-    private static String normalize(String s) {
-        if (s == null) return "";
-        String b = s.toLowerCase().trim();
-        return BRANDS.contains(b) ? b : "";
-    }
     public static String detectPriceWindow(Product p) {
         String str = p.price != null
                 ? p.price.replaceAll("[^0-9.,]", "").replace(',', '.')
