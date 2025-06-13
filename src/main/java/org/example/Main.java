@@ -90,7 +90,7 @@ public class Main {
         long end = System.currentTimeMillis();
        */
         Map<String, List<Integer>> blocks =
-                Blocker.blockByBrandTypeSize(products);
+              Blocker.createBlocks(products);
 
         // Calculate total size of all blocks
         int totalBlockEntries = 0;

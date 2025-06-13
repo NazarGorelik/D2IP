@@ -8,7 +8,136 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+
+
 public class Blocker {
+
+    private static final List<String> BRANDS = Arrays.asList(
+            "intenso", "kingston", "lexar", "pny", "samsung", "sandisk", "sony", "toshiba", "transcend"
+    );
+    private static final List<String> STORAGE_TYPES = Arrays.asList(
+            "xqd", "compactflash", "micro sd", "microsd", "sdxc", "sdhc", "usb", "ssd", "hdd", "sd", "cd"
+    );
+    private static final List<Integer> MEMORY_SIZES = Arrays.asList(
+            4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048
+    );
+
+    /**
+     * Single-pass blocking: by Brand, StorageType, and MemorySize
+     */
+    public static Map<String, List<Integer>> createBlocks(List<Product> products) {
+        Map<String, List<Integer>> blocks = new HashMap<>();
+        for (Product p : products) {
+            String brand = normalize(p.brand);
+            String type = detectStorageType(p);
+            String size = detectMemorySize(p);
+            String key = String.join("_", brand, type, size);
+            blocks.computeIfAbsent(key, k -> new ArrayList<>()).add(p.id);
+        }
+        return blocks;
+    }
+
+    /**
+     * Detects storage type using word boundaries; checks rarer types first
+     */
+    private static String detectStorageType(Product p) {
+        String txt = (p.name + " " + p.description).toLowerCase();
+        for (String t : STORAGE_TYPES) {
+            Pattern pat = Pattern.compile("\\b" + Pattern.quote(t) + "\\b");
+            Matcher m = pat.matcher(txt);
+            if (m.find()) {
+                return t.replace(" ", "");
+            }
+        }
+        return "unknown";
+    }
+
+    /**
+     * Ermitteln der memory size
+     * wichtig hier schliesse konstrukte wie 2.0 gb aus
+     *
+     */
+    private static String detectMemorySize(Product p) {
+        String text = (p.name + " " + p.description).toLowerCase();
+        StringTokenizer st = new StringTokenizer(text);
+        String prev = null;
+
+        while (st.hasMoreTokens()) {
+            String token = st.nextToken().trim();
+            if (token.isEmpty()) {
+                prev = token;
+                continue;
+            }
+            String lower = token.toLowerCase();
+            // Erster Fall: gb ohne leerzeichen
+            if (lower.endsWith("gb")) {
+                String num = lower.substring(0, lower.length() - 2);
+                // Skip floats like "2.0"
+                if (!num.contains(".") && !num.contains(",")) {
+                    boolean digitsOnly = true;
+                    for (char c : num.toCharArray()) {
+                        if (!Character.isDigit(c)) {
+                            digitsOnly = false;
+                            break;
+                        }
+                    }
+                    if (digitsOnly && !num.isEmpty()) {
+                        return num;
+                    }
+                }
+            }
+            // hier gibt es ein leerzeichen
+            if ("gb".equals(lower) && prev != null) {
+                String num = prev;
+                if (!num.contains(".") && !num.contains(",")) {
+                    boolean digitsOnly = true;
+                    for (char c : num.toCharArray()) {
+                        if (!Character.isDigit(c)) {
+                            digitsOnly = false;
+                            break;
+                        }
+                    }
+                    if (digitsOnly && !num.isEmpty()) {
+                        return num;
+                    }
+                }
+            }
+            prev = lower;
+        }
+        // gibt es in unserer liste die size
+        for (int sz : MEMORY_SIZES) {
+            String marker = sz + "gb";
+            if (text.contains(marker)) {
+                return String.valueOf(sz);
+            }
+        }
+        return "unknown";
+    }
+
+    /**
+     * Normalisiere die Brand sprich klein und sonderzeichen entfernen
+     *
+     */
+    private static String normalize(String s) {
+        if (s == null) return "";
+        String b = s.toLowerCase().trim();
+        return BRANDS.contains(b) ? b : "";
+    }
+    public static String detectPriceWindow(Product p) {
+        String str = p.price != null
+                ? p.price.replaceAll("[^0-9.,]", "").replace(',', '.')
+                : "";
+        try {
+            double pr = Double.parseDouble(str);
+            if (pr <= 15.99) return "cheap";
+            if (pr <= 99.99) return "mid";
+            return "expensive";
+        } catch (NumberFormatException e) {
+            return "unknown";
+        }
+    }
+}
+    /*
     private static final List<String> BRANDS = Arrays.asList(
             "intenso", "kingston", "lexar", "pny", "samsung", "sandisk", "sony", "toshiba", "transcend"
     );
@@ -24,8 +153,8 @@ public class Blocker {
 
 
     // Pass A: Brand + StorageType + MemorySize
-    public static Map<String,List<Integer>> blockByBrandTypeSize(List<Product> prods) {
-        Map<String,List<Integer>> blocks = new HashMap<>();
+    public static Map<String, List<Integer>> blockByBrandTypeSize(List<Product> prods) {
+        Map<String, List<Integer>> blocks = new HashMap<>();
         for (Product p : prods) {
             String brand = normalize(p.brand);
             String type = detectStorageType(p);
@@ -37,8 +166,8 @@ public class Blocker {
     }
 
     // Pass B: Preis-Bucket (100er) + Marke
-    public static Map<String,List<Integer>> blockByPriceBrand(List<Product> prods) {
-        Map<String,List<Integer>> blocks = new HashMap<>();
+    public static Map<String, List<Integer>> blockByPriceBrand(List<Product> prods) {
+        Map<String, List<Integer>> blocks = new HashMap<>();
         for (Product p : prods) {
             String bucket = detectPriceBucket(p);
             String brand = normalize(p.brand);
@@ -49,30 +178,30 @@ public class Blocker {
     }
 
     // Optional additional passes
-    public static Map<String,List<Integer>> blockByBrandType(List<Product> prods) {
-        Map<String,List<Integer>> blocks = new HashMap<>();
+    public static Map<String, List<Integer>> blockByBrandType(List<Product> prods) {
+        Map<String, List<Integer>> blocks = new HashMap<>();
         for (Product p : prods) {
             String brand = normalize(p.brand);
-            String type  = detectStorageType(p);
+            String type = detectStorageType(p);
             String key = brand + "_" + type;
             blocks.computeIfAbsent(key, k -> new ArrayList<>()).add(p.id);
         }
         return blocks;
     }
 
-    public static Map<String,List<Integer>> blockByBrandSize(List<Product> prods) {
-        Map<String,List<Integer>> blocks = new HashMap<>();
+    public static Map<String, List<Integer>> blockByBrandSize(List<Product> prods) {
+        Map<String, List<Integer>> blocks = new HashMap<>();
         for (Product p : prods) {
             String brand = normalize(p.brand);
-            String size  = detectMemorySize(p);
+            String size = detectMemorySize(p);
             String key = brand + "_" + size;
             blocks.computeIfAbsent(key, k -> new ArrayList<>()).add(p.id);
         }
         return blocks;
     }
 
-    public static Map<String,List<Integer>> blockByTypeSize(List<Product> prods) {
-        Map<String,List<Integer>> blocks = new HashMap<>();
+    public static Map<String, List<Integer>> blockByTypeSize(List<Product> prods) {
+        Map<String, List<Integer>> blocks = new HashMap<>();
         for (Product p : prods) {
             String type = detectStorageType(p);
             String size = detectMemorySize(p);
@@ -82,26 +211,26 @@ public class Blocker {
         return blocks;
     }
 
-    public static Map<String,List<Integer>> blockByFirstToken(List<Product> prods) {
-        Map<String,List<Integer>> blocks = new HashMap<>();
+    public static Map<String, List<Integer>> blockByFirstToken(List<Product> prods) {
+        Map<String, List<Integer>> blocks = new HashMap<>();
         for (Product p : prods) {
             String token = p.name.toLowerCase()
-                    .replaceAll("[^a-z0-9 ]"," ")
+                    .replaceAll("[^a-z0-9 ]", " ")
                     .split("\\s+")[0];
             blocks.computeIfAbsent(token, k -> new ArrayList<>()).add(p.id);
         }
         return blocks;
     }
 
-    
+
     private static String detectPriceBucket(Product p) {
         String str = p.price != null
-                ? p.price.replaceAll("[^0-9.,]","").replace(',','.')
+                ? p.price.replaceAll("[^0-9.,]", "").replace(',', '.')
                 : "";
         try {
             double pr = Double.parseDouble(str);
-            int b = (int)(pr/100);
-            return (b*100) + "-" + (b*100+99);
+            int b = (int) (pr / 100);
+            return (b * 100) + "-" + (b * 100 + 99);
         } catch (Exception e) {
             return "unknown";
         }
@@ -120,7 +249,6 @@ public class Blocker {
             return "unknown";
         }
     }
-
 
 
     private static String normalize(String s) {
@@ -142,15 +270,77 @@ public class Blocker {
     }
 
     private static String detectMemorySize(Product p) {
-        String txt = (p.name + " " + p.description).toLowerCase();
-        Matcher m = GB_PATTERN.matcher(txt);
-        if (m.find()) return m.group(1);
-        for (int sz : MEMORY_SIZES) {
-            if (txt.contains(String.valueOf(sz))) return String.valueOf(sz);
+        String text = (p.name + " " + p.description).toLowerCase();
+        // Tokenize by whitespace without regex
+        StringTokenizer st = new StringTokenizer(text);
+        String prev = null;
+        while (st.hasMoreTokens()) {
+            String token = st.nextToken().trim();
+            if (token.isEmpty()) continue;
+            // Check pattern: "<number>gb" suffix
+            String lower = token.toLowerCase();
+            if (lower.endsWith("gb")) {
+                String num = lower.substring(0, lower.length() - 2);
+                boolean digitsOnly = true;
+                for (char c : num.toCharArray()) {
+                    if (!Character.isDigit(c)) { digitsOnly = false; break; }
+                }
+                if (digitsOnly && !num.isEmpty()) {
+                    return num;
+                }
+            }
+            // Check case: "<number>" followed by "gb"
+            if ("gb".equals(lower) && prev != null) {
+                boolean digitsOnly = true;
+                for (char c : prev.toCharArray()) {
+                    if (!Character.isDigit(c)) { digitsOnly = false; break; }
+                }
+                if (digitsOnly && !prev.isEmpty()) {
+                    return prev;
+                }
+            }
+            prev = token;
         }
         return "unknown";
     }
+
+for (int sz : MEMORY_SIZES) {
+        if (txt.contains(String.valueOf(sz))) {
+        return String.valueOf(sz);
+            }
+                    }
+                    return "unknown";
+                    }
+                    }
+/*
+    private static String detectMemorySize(Product p) {
+        String text = (p.name + " " + p.description).toLowerCase();
+        String[] tokens = text.split("\\s+");
+
+        for (int i = 0; i < tokens.length - 1; i++) {
+            String current = tokens[i];
+            String next = tokens[i + 1];
+
+            if (next.equals("gb")) {
+                // check if current is an integer and not a float
+                if (current.chars().allMatch(Character::isDigit)) {
+                    return current;
+                }
+            }
+        }
+
+        // fallback: check if any known sizes are in the string
+        for (int size : MEMORY_SIZES) {
+            if (text.contains(String.valueOf(size) + "gb")) {
+                return String.valueOf(size);
+            }
+        }
+
+        return "unknown";
+    }
 }
+
+ */
 
     /*// Pass A: Preis-Bucket (100er) + Marke
     public static Map<String,List<Integer>> blockByPriceBrand(List<Product> prods) {
