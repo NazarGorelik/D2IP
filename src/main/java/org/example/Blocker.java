@@ -44,7 +44,7 @@ public class Blocker {
     }
 
     public static String blockByBrand(Product product) {
-        String brand = product.brand;
+        String brand = product.brand.toLowerCase();
         String blockKey = BRANDS.contains(brand) ? brand : "";
 
         if(blockKey.isEmpty()) {
@@ -59,7 +59,7 @@ public class Blocker {
      **/
      public static String reassignMissingBrandsByName(String name) {
          for(String knownBrand : BRANDS) {
-             if(name.contains(knownBrand)) {
+             if(name.toLowerCase().contains(knownBrand)) {
                  return knownBrand;
              }
          }
@@ -69,7 +69,7 @@ public class Blocker {
     /**
      * Detects storage type using word boundaries; checks rarer types first
      */
-    private static String detectStorageType(Product p) {
+    public static String detectStorageType(Product p) {
         String txt = (p.name + " " + p.description).toLowerCase();
         for (String t : STORAGE_TYPES) {
             Pattern pat = Pattern.compile("\\b" + Pattern.quote(t) + "\\b");
@@ -137,8 +137,8 @@ public class Blocker {
 //        return detectMemorySizeBasedOnEnum(text);
 //    }
 
-    private static String detectMemorySizeBasedOnEnum(Product p){
-        String text = p.name + " " + p.description.toLowerCase();
+    public static String detectMemorySizeBasedOnEnum(Product p){
+        String text = p.name.toLowerCase() + " " + p.description.toLowerCase();
         List<String> words = Arrays.asList(text.split(" "));
         for (int sz : MEMORY_SIZES) {
             // split by space and check if word is equal to memory_size. otherwise unknown
