@@ -54,11 +54,11 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
         // generates input stream with double tab as a delimiter between columns
-        InputStream stream = CsvConverter.convertCsvToDoubleTabStream("src/main/resources/dataset_2/Z2.csv");
+        InputStream stream = CsvConverter.convertCsvToDoubleTabStream("src/main/resources/dataset_2/Z2_small.csv");
         List<Product> products = loadProducts(stream);
         // clean product names and brands from weird characters
         cleanProductNamesAndBrands(products);
-        List<Pair> groundTruth = loadGroundTruth("src/main/resources/dataset_2/ZY2.csv");
+        List<Pair> groundTruth = loadGroundTruth("src/main/resources/dataset_2/ZY2_small.csv");
 
         long start = System.currentTimeMillis();
 /*
