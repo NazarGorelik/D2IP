@@ -24,11 +24,11 @@ public class Matcher {
                         Product p2 = productById.get(rowIds.get(j));
 
                         double jaccardSimilarity = jaccardSimilarity(p1, p2);
-                        if (jaccardSimilarity < 0.2) continue; // skip clearly dissimilar
+                        if (jaccardSimilarity < 0.18) continue; // skip clearly dissimilar
 
                         double sim = 0.6 * jaccardSimilarity(p1, p2) + 0.4 * levenshteinSimilarity(p1, p2);
 
-                        if (sim >= threshold) {
+                        if (sim >= (threshold - 0.1)) {
                             int id1 = Math.min(p1.id, p2.id);
                             int id2 = Math.max(p1.id, p2.id);
                             Pair pair = new Pair(id1, id2);

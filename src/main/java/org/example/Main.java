@@ -61,6 +61,8 @@ public class Main {
         List<Pair> groundTruth = loadGroundTruth("src/main/resources/dataset_2/ZY2_small.csv");
 
         long start = System.currentTimeMillis();
+
+        
 /*
         //generate blocks with similar pattern
         Map<String, List<Integer>> blocks = Blocker.createBlocks(products);

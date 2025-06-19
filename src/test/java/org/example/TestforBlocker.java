@@ -7,12 +7,10 @@ import com.opencsv.exceptions.CsvValidationException;
 import org.example.model.Product;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -36,6 +34,7 @@ class TestforBlocker {
     @Test
     void testbrandblockingkeynormalinput(){
 
+
         String input =  "86093,\"SANDISK Extreme UHS-I Micro-SDXC Speicherkarte, 64 GB, 100 MB/s, UHS Class 1\",39.99,,,";
         String output = "";
         try (CSVReader reader = new CSVReaderBuilder(new StringReader(input))
@@ -49,9 +48,7 @@ class TestforBlocker {
             int id = Integer.parseInt(fields[0]);
             Product p = new Product(id,fields[1],fields[2],fields[3],fields[4],fields[5]);
             output = Blocker.blockByBrand(p);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (CsvValidationException e) {
+        } catch (IOException | CsvValidationException e) {
             throw new RuntimeException(e);
         }
 
@@ -167,7 +164,7 @@ class TestforBlocker {
     @Test
     void testsizeblockingkeyabnormalinput(){
 
-        String input =  "41820,GB XQD G-Serie Speicherkarte SONY,268.99,,,";
+        String input =  "41813,USB TransMemory Ultra SDHC XQD 80mb,13.99,,,";
         String output = "";
         try (CSVReader reader = new CSVReaderBuilder(new StringReader(input))
                 .withCSVParser(new CSVParserBuilder()
@@ -198,6 +195,7 @@ class TestforBlocker {
 
         String input =  "86093,\"SANDISK Extreme UHS-I Micro-SDXC Speicherkarte, 64 GB, 100 MB/s, UHS Class 1\",39.99,,,";
         String output = "";
+
         try (CSVReader reader = new CSVReaderBuilder(new StringReader(input))
                 .withCSVParser(new CSVParserBuilder()
                         .withSeparator(',')

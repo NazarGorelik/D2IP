@@ -1,7 +1,13 @@
 package org.example;
 
+import com.opencsv.CSVReader;
+import com.opencsv.CSVReaderBuilder;
+import com.opencsv.exceptions.CsvValidationException;
 import org.example.model.Product;
 
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 import java.util.regex.Matcher;
@@ -12,9 +18,12 @@ import java.util.stream.Collectors;
 
 public class Blocker {
 
-    private static final List<String> BRANDS = Arrays.asList(
+
+
+
+    private static final List<String> BRANDS = loadbrands();/*Arrays.asList(
             "intenso", "kingston", "lexar", "pny", "samsung", "sandisk", "sony", "toshiba", "transcend"
-    );
+    );*/
     private static final List<String> STORAGE_TYPES = Arrays.asList(
             "xqd", "compactflash", "micro sd", "microsd", "sdxc", "sdhc", "usb", "ssd", "hdd", "sd", "cd"
     );
@@ -66,13 +75,33 @@ public class Blocker {
          return "unknown";
      }
 
+    public static List<String> loadbrands(){
+        Object Reader;
+        List<String> row = new ArrayList<>();
+        String[] line = new String[10];
+        int count = 0;
+        try {
+            Reader input = new InputStreamReader(Files.newInputStream(Path.of("src/main/resources/dataset_2/brandsstoragedevices.csv")));
+            CSVReader reader = new CSVReaderBuilder(input).build();
+
+            while ((line = reader.readNext()) != null){
+                row.add(Arrays.toString(line).toLowerCase().replace("[", "").replace("]", ""));
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (CsvValidationException e) {
+            throw new RuntimeException(e);
+        }
+        return row;
+    }
+
     /**
      * Detects storage type using word boundaries; checks rarer types first
      */
     public static String detectStorageType(Product p) {
         String txt = (p.name + " " + p.description).toLowerCase();
         for (String t : STORAGE_TYPES) {
-            Pattern pat = Pattern.compile("\\b" + Pattern.quote(t) + "\\b");
+            Pattern pat = Pattern.compile("(?i)" + Pattern.quote(t) + "\\b");
             Matcher m = pat.matcher(txt);
             if (m.find()) {
                 return t.replace(" ", "");
@@ -80,7 +109,6 @@ public class Blocker {
         }
         return "unknown";
     }
-
     /**
      * Ermitteln der memory size
      * wichtig hier schliesse konstrukte wie 2.0 gb aus
@@ -150,11 +178,12 @@ public class Blocker {
         // check if memory size is concatenated with other words. "sun64samsung" -> 64 gb
         for (int sz : MEMORY_SIZES) {
             // split by space and check if word is equal to memory_size. otherwise unknown
-            if (text.contains(String.valueOf(sz))) {
+            String regex = "(?<!\\d)" + sz + "(?!\\d)";
+
+            if (Pattern.compile(regex).matcher(text).find()) {
                 return String.valueOf(sz);
             }
         }
-
         return "unknown";
     }
 
