@@ -27,10 +27,43 @@ public class Blocker {
     private static final List<String> STORAGE_TYPES = Arrays.asList(
             "xqd", "compactflash", "micro sd", "microsd", "sdxc", "sdhc", "usb", "ssd", "hdd", "sd", "cd"
     );
-    private static final List<Integer> MEMORY_SIZES = Arrays.asList(
-            2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4
+    private static final List<String> MEMORY_SIZES = Arrays.asList(
+           // "2048gb", "1024gb", "512gb", "256gb", "128gb", "64gb", "32gb", "16gb", "8gb", "4gb",
+            "2048", "1024", "512", "256", "128", "64", "32", "16", "8", "4"
     );
 
+    private static final Map<String, String> STORAGE_ALIASES = new LinkedHashMap<>();
+    static {
+
+        STORAGE_ALIASES.put("usb[ -]?adapter",   "zubehör");
+        STORAGE_ALIASES.put("micro[ -]?sdxc[ -]?adapter",   "zubehör");
+        STORAGE_ALIASES.put("micro[ -]?sdhc[ -]?adapter",   "zubehör");
+        STORAGE_ALIASES.put("micro[ -]?sd[ -]?adapter",   "zubehör");
+        STORAGE_ALIASES.put("adapter",   "zubehör");
+        STORAGE_ALIASES.put("xqd",            "xqd");
+        STORAGE_ALIASES.put("compact ?flash", "compactflash");
+        STORAGE_ALIASES.put("micro[ -]?sdxc", "microsdxc");
+        STORAGE_ALIASES.put("micro[ -]?sdhc", "microsdhc");
+        STORAGE_ALIASES.put("micro[ -]?sd",   "microsd");
+        STORAGE_ALIASES.put("sdxc",           "sd");
+        STORAGE_ALIASES.put("speicherkarte",           "sd");
+        STORAGE_ALIASES.put("sdhc",           "sd");
+        STORAGE_ALIASES.put("ssd",            "ssd");
+        STORAGE_ALIASES.put("hdd",            "hdd");
+        STORAGE_ALIASES.put("\\bsd\\b",       "sd");
+        STORAGE_ALIASES.put("sd card",        "sd");
+        STORAGE_ALIASES.put("memory card",    "sd");
+        STORAGE_ALIASES.put("\\busb\\b(?![ -]?adapter)", "usb");
+        STORAGE_ALIASES.put("cd",             "cd");
+    }
+
+    private static final List<Map.Entry<Pattern,String>> STORAGE_PATTERNS =
+            STORAGE_ALIASES.entrySet()
+                    .stream()
+                    .map(e -> Map.entry(
+                            Pattern.compile("\\b(?i)" + e.getKey() + "\\b"),
+                            e.getValue()))
+                    .toList();
     /**
      * Single-pass blocking: by Brand, StorageType, and MemorySize
      */
@@ -99,12 +132,10 @@ public class Blocker {
      * Detects storage type using word boundaries; checks rarer types first
      */
     public static String detectStorageType(Product p) {
-        String txt = (p.name + " " + p.description).toLowerCase();
-        for (String t : STORAGE_TYPES) {
-            Pattern pat = Pattern.compile("(?i)" + Pattern.quote(t) + "\\b");
-            Matcher m = pat.matcher(txt);
-            if (m.find()) {
-                return t.replace(" ", "");
+        String txt = (p.name + " " + p.description).toLowerCase(Locale.ROOT);
+        for (Map.Entry<Pattern, String> e : STORAGE_PATTERNS) {
+            if (e.getKey().matcher(txt).find()) {
+                return e.getValue();
             }
         }
         return "unknown";
@@ -168,7 +199,24 @@ public class Blocker {
     public static String detectMemorySizeBasedOnEnum(Product p){
         String text = p.name.toLowerCase() + " " + p.description.toLowerCase();
         List<String> words = Arrays.asList(text.split(" "));
-        for (int sz : MEMORY_SIZES) {
+        //String text = (p.name + " " + p.description).toLowerCase(Locale.ROOT);
+
+        // 1) First look for explicit “<size> GB” (optional space), highest priority
+        for (String sz : MEMORY_SIZES) {
+            String regexGb = "\\b" + Pattern.quote(sz) + "\\s*gb";
+            if (Pattern.compile(regexGb, Pattern.CASE_INSENSITIVE).matcher(text).find()) {
+                return sz;
+            }
+        }
+
+        // 2) Then look for a standalone number token exactly matching one of the sizes
+        for (String sz : MEMORY_SIZES) {
+            String regexNum =  Pattern.quote(sz) ;
+            if (Pattern.compile(regexNum).matcher(text).find()) {
+                return sz;
+            }
+        }
+        /*for (String sz : MEMORY_SIZES) {
             // split by space and check if word is equal to memory_size. otherwise unknown
             if (words.contains(String.valueOf(sz))) {
                 return String.valueOf(sz);
@@ -176,14 +224,14 @@ public class Blocker {
         }
 
         // check if memory size is concatenated with other words. "sun64samsung" -> 64 gb
-        for (int sz : MEMORY_SIZES) {
+        for (String sz : MEMORY_SIZES) {
             // split by space and check if word is equal to memory_size. otherwise unknown
             String regex = "(?<!\\d)" + sz + "(?!\\d)";
 
             if (Pattern.compile(regex).matcher(text).find()) {
                 return String.valueOf(sz);
             }
-        }
+        }*/
         return "unknown";
     }
 

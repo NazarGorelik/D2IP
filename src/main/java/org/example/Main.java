@@ -97,16 +97,17 @@ public class Main {
         // Calculate total size of all blocks
         int totalBlockEntries = 0;
         int grosseblöcke = 0;
+        int blockgrösse = 0;
         for (List<Integer> ids : blocks.values()) {
-            if (ids.size() > 1000) {++grosseblöcke;}
+            if (ids.size() > 1000) {++grosseblöcke; blockgrösse += ids.size();}
             totalBlockEntries += ids.size();
         }
         System.out.println("Total block entries: " + totalBlockEntries);
-        System.out.println("Total number of large blocks: " + grosseblöcke);
+        System.out.println("Total number of large blocks: " + grosseblöcke + " " );
 
 
         // Generate matches based on these blocks
-        double threshold = 0.5;
+        double threshold = 0.55;
         List<Pair> matches =
                 Matcher.generateMatches(blocks, products, threshold);
 
