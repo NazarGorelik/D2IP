@@ -8,75 +8,52 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class Matcher {
-    static int paircount = 0;
-    public static List<Pair> generateMatches(Map<String, List<Integer>> blocks, List<Product> products, double threshold) {
-        List<Pair> candidatePairs = new ArrayList<>();
-        Set<Pair> seenPairs = new HashSet<>();
+
+    public static Set<Pair> generateMatches(Map<String, List<Integer>> blocks, List<Product> products, double threshold) {
+        Set<Pair> candidatePairs = new HashSet<>();
         Map<Integer, Product> productById = products.stream()
                 .collect(Collectors.toMap(p -> p.id, p -> p));
-        int count = 0;
 
-        for (List<Integer> rowIds : blocks.values()) {
-            if(rowIds.size() <= 1000) {
-                for (int i = 0; i < rowIds.size(); i++) {
-                    for (int j = i + 1; j < rowIds.size(); j++) {
-                        Product p1 = productById.get(rowIds.get(i));
-                        Product p2 = productById.get(rowIds.get(j));
+        // Map für jedes Produkt: ID → Blocking Keys
+        Map<Integer, Set<String>> productToKeys = new HashMap<>();
+        Blocker blocker = new Blocker();
+        for (Product p : products) {
+            productToKeys.put(p.id, blocker.generateBlockingKeys(p));
+        }
 
-                        double jaccardSimilarity = jaccardSimilarity(p1, p2);
-                        if (jaccardSimilarity < 0.18) continue; // skip clearly dissimilar
+        Set<String> seenPairs = new HashSet<>();
+        int matchCount = 0;
 
-                        double sim = 0.6 * jaccardSimilarity(p1, p2) + 0.4 * levenshteinSimilarity(p1, p2);
+        for (List<Integer> ids : blocks.values()) {
+            for (int i = 0; i < ids.size(); i++) {
+                for (int j = i + 1; j < ids.size(); j++) {
+                    int id1 = Math.min(ids.get(i), ids.get(j));
+                    int id2 = Math.max(ids.get(i), ids.get(j));
+                    String key = id1 + "#" + id2;
+                    if (!seenPairs.add(key)) continue;
 
-                        if (sim >= (threshold - 0.1)) {
-                            int id1 = Math.min(p1.id, p2.id);
-                            int id2 = Math.max(p1.id, p2.id);
-                            Pair pair = new Pair(id1, id2);
-                            if (seenPairs.add(pair)) {
-                                candidatePairs.add(pair);
-                                paircount++;
-                            }
-                        }
+                    Product p1 = productById.get(id1);
+                    Product p2 = productById.get(id2);
+
+                    Set<String> keys1 = productToKeys.get(id1);
+                    Set<String> keys2 = productToKeys.get(id2);
+                    Set<String> intersection = new HashSet<>(keys1);
+                    intersection.retainAll(keys2);
+
+                    if (intersection.size() >= 4) {
+                        candidatePairs.add(new Pair(id1, id2));
+                        continue;
+                    }
+
+                    // Ähnlichkeitsvergleich nur bei < 4 gemeinsamen Keys
+                    double jacc = jaccardSimilarity(p1, p2);
+                    double lev = levenshteinSimilarity(p1, p2);
+                    double score = 0.6 * jacc + 0.4 * lev;
+
+                    if (score >= threshold) {
+                        candidatePairs.add(new Pair(id1, id2));
                     }
                 }
-                System.out.println("Gefundene Matches: " + paircount);
-                System.out.println(++count);
-            }
-            else {
-                // 1) Große Blöcke in drei Preis-Sub-Blöcke unterteilen:
-                Map<String, List<Integer>> priceBuckets = new HashMap<>();
-                for (Integer id : rowIds) {
-                    Product p = productById.get(id);
-                    Blocker b = new Blocker();
-                    String bucket = b.detectPriceWindow(p); // cheap, mid, expensive
-                    priceBuckets.computeIfAbsent(bucket, k -> new ArrayList<>()).add(id);
-                }
-                // 2) Dann wieder wie gewohnt innerhalb dieser Sub-Blöcke matchen:
-                for (List<Integer> subIds : priceBuckets.values()) {
-                    if (subIds.size() <= 1000) {
-                        for (int i = 0; i < subIds.size(); i++) {
-                            for (int j = i + 1; j < subIds.size(); j++) {
-                                Product p1 = productById.get(subIds.get(i));
-                                Product p2 = productById.get(subIds.get(j));
-                                double jacc0 = jaccardSimilarity(p1, p2);
-                                if (jacc0 < 0.2) continue;
-                                double sim = 0.6 * jacc0 + 0.4 * levenshteinSimilarity(p1, p2);
-                                if (sim >= threshold) {
-                                    int id1 = Math.min(p1.id, p2.id);
-                                    int id2 = Math.max(p1.id, p2.id);
-                                    Pair pair = new Pair(id1, id2);
-                                    if (seenPairs.add(pair)) {
-                                        candidatePairs.add(pair);
-                                        paircount++;
-                                    }
-                                }
-                            }
-                        }
-                        System.out.println("Gefundene Matches: " + paircount);
-                        System.out.println(++count);
-                    }
-                }
-
             }
         }
 
@@ -86,12 +63,10 @@ public class Matcher {
     private static double jaccardSimilarity(Product p1, Product p2) {
         Set<String> set1 = new HashSet<>(Arrays.asList(normalize(p1).split(" ")));
         Set<String> set2 = new HashSet<>(Arrays.asList(normalize(p2).split(" ")));
-
         Set<String> intersection = new HashSet<>(set1);
         intersection.retainAll(set2);
         Set<String> union = new HashSet<>(set1);
         union.addAll(set2);
-
         return union.isEmpty() ? 0.0 : (double) intersection.size() / union.size();
     }
 
@@ -99,19 +74,16 @@ public class Matcher {
         String s1 = fullText(p1);
         String s2 = fullText(p2);
         LevenshteinDistance ld = new LevenshteinDistance();
-        int distance = ld.apply(s1, s2);
+        int dist = ld.apply(s1, s2);
         int maxLen = Math.max(s1.length(), s2.length());
-        return maxLen == 0 ? 1.0 : 1.0 - ((double) distance / maxLen);
+        return maxLen == 0 ? 1.0 : 1.0 - (double) dist / maxLen;
     }
 
     private static String normalize(Product p) {
-        return fullText(p).toLowerCase()
-                .replaceAll("[^a-z0-9 ]", " ")
-                .replaceAll("\\s+", " ")
-                .trim();
+        return fullText(p).toLowerCase().replaceAll("[^a-z0-9 ]", " ").replaceAll("\\s+", " ").trim();
     }
 
     private static String fullText(Product p) {
-        return (p.name + " " + p.brand + " " + p.description).toLowerCase();
+        return (p.name + " " + p.brand + " ").toLowerCase();
     }
 }
