@@ -24,12 +24,20 @@ public class Blocker {
     private static final List<String> BRANDS = loadbrands();/*Arrays.asList(
             "intenso", "kingston", "lexar", "pny", "samsung", "sandisk", "sony", "toshiba", "transcend"
     );*/
+    private static final Set<String> BRAND_SET = new HashSet<>(BRANDS);
+    static final Pattern ALL_BRANDS = Pattern.compile(
+            "\\b(?:" + BRAND_SET.stream()
+                    .map(Pattern::quote)
+                    .collect(Collectors.joining("|"))
+                    + ")\\b",
+            Pattern.CASE_INSENSITIVE
+    );
     private static final List<String> STORAGE_TYPES = Arrays.asList(
             "xqd", "compactflash", "micro sd", "microsd", "sdxc", "sdhc", "usb", "ssd", "hdd", "sd", "cd"
     );
     private static final List<String> MEMORY_SIZES = Arrays.asList(
            // "2048gb", "1024gb", "512gb", "256gb", "128gb", "64gb", "32gb", "16gb", "8gb", "4gb",
-            "2048", "1024", "512", "256", "128", "64", "32", "16", "8", "4"
+            "2048", "1024", "512", "256", "200", "128", "64", "32", "16", "8", "4"
     );
 
     private static final Map<String, String> STORAGE_ALIASES = new LinkedHashMap<>();
@@ -42,10 +50,14 @@ public class Blocker {
         STORAGE_ALIASES.put("adapter",   "zubehör");
         STORAGE_ALIASES.put("xqd",            "xqd");
         STORAGE_ALIASES.put("compact ?flash", "compactflash");
-        STORAGE_ALIASES.put("micro[ -]?sdxc", "microsdxc");
-        STORAGE_ALIASES.put("micro[ -]?sdhc", "microsdhc");
-        STORAGE_ALIASES.put("micro[ -]?sd",   "microsd");
+        STORAGE_ALIASES.put("micro[ -]?sdxc", "sd");
+        STORAGE_ALIASES.put("micro[ -]?sdhc", "sd");
+        STORAGE_ALIASES.put("micro[ -]?sd",   "sd");
         STORAGE_ALIASES.put("sdxc",           "sd");
+        STORAGE_ALIASES.put("2.0",           "usb");
+        STORAGE_ALIASES.put("3.0",           "usb");
+
+
         STORAGE_ALIASES.put("speicherkarte",           "sd");
         STORAGE_ALIASES.put("sdhc",           "sd");
         STORAGE_ALIASES.put("ssd",            "ssd");
@@ -75,7 +87,7 @@ public class Blocker {
             String type = detectStorageType(p);
 //            String size = detectMemorySize(p);
             String size = detectMemorySizeBasedOnEnum(p);
-            String key = String.join("_", brand, type, size);
+            String key = String.join("_", brand, type, size); //, size
             blocks.computeIfAbsent(key, k -> new ArrayList<>()).add(p.id);
             blocksTest.computeIfAbsent(key, k -> new ArrayList<>()).add(p);
         }
@@ -85,12 +97,16 @@ public class Blocker {
         return blocks;
     }
 
+    public static String unify(){
+
+    }
+
     public static String blockByBrand(Product product) {
         String brand = product.brand.toLowerCase();
-        String blockKey = BRANDS.contains(brand) ? brand : "";
+        String blockKey = BRAND_SET.contains(brand) ? brand : "";
 
         if(blockKey.isEmpty()) {
-            blockKey = reassignMissingBrandsByName(product.name);
+            blockKey = reassignMissingBrandsByName(product);
         }
         return blockKey;
     }
@@ -99,11 +115,12 @@ public class Blocker {
      * Reassigns products with missing brand to existing brand blocks based on product name.
      *
      **/
-     public static String reassignMissingBrandsByName(String name) {
-         for(String knownBrand : BRANDS) {
-             if(name.toLowerCase().contains(knownBrand)) {
-                 return knownBrand;
-             }
+     public static String reassignMissingBrandsByName(Product product) {
+         String name = product.brand.toLowerCase() + " " + product.price + " " + product.description + " " + product.name;
+         name.toLowerCase();
+         Matcher m = ALL_BRANDS.matcher(name);
+         if (m.find()) {
+             return m.group().toLowerCase();
          }
          return "unknown";
      }
@@ -111,6 +128,7 @@ public class Blocker {
     public static List<String> loadbrands(){
         Object Reader;
         List<String> row = new ArrayList<>();
+
         String[] line = new String[10];
         int count = 0;
         try {
@@ -132,13 +150,28 @@ public class Blocker {
      * Detects storage type using word boundaries; checks rarer types first
      */
     public static String detectStorageType(Product p) {
-        String txt = (p.name + " " + p.description).toLowerCase(Locale.ROOT);
+        String txt = (p.name + " " + p.price+ " " + p.description).toLowerCase();
+        String result = "";
+        List<String> matched = new ArrayList<>();
         for (Map.Entry<Pattern, String> e : STORAGE_PATTERNS) {
             if (e.getKey().matcher(txt).find()) {
-                return e.getValue();
+                String val = e.getValue();
+                if (!matched.contains(val)) {
+                    matched.add(val);
+                }
             }
         }
-        return "unknown";
+        matched.sort(Comparator.comparingInt(String::length).reversed());
+
+        StringBuilder sb = new StringBuilder();
+        for (String part : matched) {
+            sb.append(part);
+        }
+        result = sb.toString();
+        if (result.equals("")) {
+            return "unknown";
+        }
+        return result;
     }
     /**
      * Ermitteln der memory size
@@ -201,7 +234,6 @@ public class Blocker {
         List<String> words = Arrays.asList(text.split(" "));
         //String text = (p.name + " " + p.description).toLowerCase(Locale.ROOT);
 
-        // 1) First look for explicit “<size> GB” (optional space), highest priority
         for (String sz : MEMORY_SIZES) {
             String regexGb = "\\b" + Pattern.quote(sz) + "\\s*gb";
             if (Pattern.compile(regexGb, Pattern.CASE_INSENSITIVE).matcher(text).find()) {
@@ -209,9 +241,11 @@ public class Blocker {
             }
         }
 
-        // 2) Then look for a standalone number token exactly matching one of the sizes
+
         for (String sz : MEMORY_SIZES) {
-            String regexNum =  Pattern.quote(sz) ;
+            String regexNum = "(?<!\\d)"
+                    + Pattern.quote(sz)
+                    + "(?![A-Za-z\\d])";
             if (Pattern.compile(regexNum).matcher(text).find()) {
                 return sz;
             }

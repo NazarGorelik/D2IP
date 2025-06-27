@@ -57,11 +57,11 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
         // generates input stream with double tab as a delimiter between columns
-        InputStream stream = CsvConverter.convertCsvToDoubleTabStream("src/main/resources/dataset_2/Z2_mittel.csv");
+        InputStream stream = CsvConverter.convertCsvToDoubleTabStream("src/main/resources/dataset_2/Z2_small.csv");
         List<Product> products = loadProducts(stream);
         // clean product names and brands from weird characters
         cleanProductNamesAndBrands(products);
-        List<Pair> groundTruth = loadGroundTruth("src/main/resources/dataset_2/ZY2_mittel.csv");
+        List<Pair> groundTruth = loadGroundTruth("src/main/resources/dataset_2/ZY2_small.csv");
 
         long start = System.currentTimeMillis();
 
@@ -99,7 +99,7 @@ public class Main {
 
         ObjectMapper m = new ObjectMapper();
         String json = m.writerWithDefaultPrettyPrinter().writeValueAsString(blocks);
-        System.out.println(json);
+        //System.out.println(json);
 
         // Calculate total size of all blocks
         int totalBlockEntries = 0;
@@ -110,13 +110,14 @@ public class Main {
             totalBlockEntries += ids.size();
         }
         System.out.println("Total block entries: " + totalBlockEntries);
+        System.out.println("Total number of blocks: " + blocks.size());
         System.out.println("Total number of large blocks: " + grosseblöcke + " " );
-        int i = Runtime.getRuntime().availableProcessors();
-        System.out.println(i);
+       // int i = Runtime.getRuntime().availableProcessors();
+        //System.out.println(i);
 
 
         // Generate matches based on these blocks
-        double threshold = 0.5;
+        double threshold = 0.58;
         List<Pair> matches =
                 Matcher.generateMatches(blocks, products, threshold);
 
@@ -146,7 +147,7 @@ public class Main {
     private static String CleanString(String word){
         String cleaned = word
                 .toLowerCase()
-                .replaceAll("[^a-z0-9 ]", "")   // <-- space is preserved!
+                .replaceAll("[^a-z0-9 .]", "")   // <-- space is preserved!
                 .replaceAll("\\s+", " ")        // normalize multiple spaces
                 .trim();
 

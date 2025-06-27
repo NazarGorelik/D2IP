@@ -9,27 +9,29 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Matcher {
     static AtomicInteger paircount = new AtomicInteger();
     public static List<Pair> generateMatches(Map<String, List<Integer>> blocks, List<Product> products, double threshold) {
         List<Pair> candidatePairs = new CopyOnWriteArrayList<>();
         Set<Pair> seenPairs = ConcurrentHashMap.newKeySet();
-        Set<Integer> usedIds = ConcurrentHashMap.newKeySet();
+        Map<Integer,Integer> usedIds = new ConcurrentHashMap<>();
         Map<Integer, Product> productById = products.stream()
                 .collect(Collectors.toMap(p -> p.id, p -> p));
 
         AtomicInteger count = new AtomicInteger();
-        blocks.entrySet().parallelStream().forEach(block -> {
+        //blocks.entrySet().parallelStream().forEach(block -> {
 
-        //for (Map.Entry<String, List<Integer>> block : blocks.entrySet()  ) {
+                     for (Map.Entry<String, List<Integer>> block : blocks.entrySet()  ) {
 
             String blockName = block.getKey();
             double fixedsim = 0;
             int unknowncount = countUnknownRegex(blockName);
             switch (unknowncount) {
                 case 0:
-                    fixedsim = 0.24;
+                    fixedsim = 0.22;
                     break;
                 case 1:
                     fixedsim = 0.1;
@@ -53,35 +55,35 @@ public class Matcher {
             outer:
             for (int i = 0; i < rowIds.size(); i++) {
 
+
                 int j=0;
                 if (i==0 || i == j) j=i+1;
                 inner:
                 for (; j < rowIds.size(); j++) {
                     if (i == j&& (j+1) < rowIds.size()-1 ){ j=i+1;}
-                    else if (i == j) continue outer;
+                    else if (i == j) continue inner;
+                    double tempfixedsim = fixedsim;
 
                     Product p1 = productById.get(rowIds.get(i));
                     Product p2 = productById.get(rowIds.get(j));
+                    int id1 = Math.min(p1.id, p2.id);
+                    int id2 = Math.max(p1.id, p2.id);
 
-
-                    if (usedIds.contains(p1.id))
-                    {
-                        continue outer;
-
-                    }else if ( usedIds.contains(p2.id)){
+                    if ( usedIds.containsKey(id1)
+                            && usedIds.get(id1).equals(id2) ) {
                         continue inner;
                     }
+                    if (p1.brand.equals(p2.brand)) {tempfixedsim = tempfixedsim + 0.05;}
 
                     double jaccardSimilarity = jaccardSimilarity(p1, p2);
-                    if (jaccardSimilarity < 0.18) continue inner; // skip clearly dissimilar
+                    if (jaccardSimilarity < 0.25) continue inner; // skip clearly dissimilar
                     double levenshteinsim = levenshteinSimilarity(p1, p2);
 
 
-                    double sim = 0.9 * jaccardSimilarity + 0.8 * levenshteinsim ;//+ fixedsim;
+                    double sim = 0.83 * jaccardSimilarity + 0.25 * levenshteinsim; //+ tempfixedsim;
 
                     if (sim >= (threshold)) {
-                        int id1 = Math.min(p1.id, p2.id);
-                        int id2 = Math.max(p1.id, p2.id);
+
                         Pair pair = new Pair(id1, id2);
                         //rowIds.remove(i);
                         //rowIds.remove(j-1);
@@ -89,10 +91,10 @@ public class Matcher {
                         if (seenPairs.add(pair)) {
                             candidatePairs.add(pair);
                             paircount.incrementAndGet();
-                            usedIds.add(p1.id);
-                            usedIds.add(p2.id);
+                            usedIds.put(id1, id2);
 
-                            continue outer;
+
+                            continue inner;
                         }
                     }
                         /*if (j == rowIds.size() - 1){
@@ -104,8 +106,8 @@ public class Matcher {
             }
             System.out.println("Gefundene Matches: " + paircount.get());
             System.out.println(count.incrementAndGet());
-             });
-        //}
+         //});
+        }
       //  }
             /* {
                 // 1) Große Blöcke in drei Preis-Sub-Blöcke unterteilen:
@@ -144,7 +146,7 @@ public class Matcher {
 
             }
         }*/
-
+        System.out.println(candidatePairs);
         return candidatePairs;
     }
 
@@ -179,11 +181,13 @@ public class Matcher {
         Set<String> set1 = new HashSet<>(Arrays.asList(normalize(p1).split(" ")));
         Set<String> set2 = new HashSet<>(Arrays.asList(normalize(p2).split(" ")));
         double bonus = 0.0;
+        int s = 0;
         Set<String> intersection = new HashSet<>(set1);
         intersection.retainAll(set2);
         if (intersection.size() >= 5 ) bonus = 0.1;
         Set<String> union = new HashSet<>(set1);
         union.addAll(set2);
+
 
         return union.isEmpty() ? 0.0 : (double) intersection.size() / union.size() + bonus;
     }
@@ -205,6 +209,6 @@ public class Matcher {
     }
 
     private static String fullText(Product p) {
-        return (p.name + " " + p.brand + " " + p.description).toLowerCase();
+        return (p.name + " " + p.brand ).toLowerCase();//" " + p.description " " + p.price
     }
 }
