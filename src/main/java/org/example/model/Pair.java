@@ -6,9 +6,14 @@ public class Pair {
     public int id1;
     public int id2;
 
-    public Pair(int id1, int id2) {
-        this.id1 = id1;
-        this.id2 = id2;
+    public Pair(int a, int b) {
+        if (a <= b) {
+            this.id1 = a;
+            this.id2 = b;
+        } else {
+            this.id1 = b;
+            this.id2 = a;
+        }
     }
 
     @Override

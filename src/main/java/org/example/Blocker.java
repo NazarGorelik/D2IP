@@ -26,11 +26,7 @@ public class Blocker {
     );*/
     private static final Set<String> BRAND_SET = new HashSet<>(BRANDS);
     static final Pattern ALL_BRANDS = Pattern.compile(
-            "\\b(?:" + BRAND_SET.stream()
-                    .map(Pattern::quote)
-                    .collect(Collectors.joining("|"))
-                    + ")\\b",
-            Pattern.CASE_INSENSITIVE
+            "(?i)" + "(" + BRAND_SET.stream().map(Pattern::quote).collect(Collectors.joining("|")) +")"
     );
     private static final List<String> STORAGE_TYPES = Arrays.asList(
             "xqd", "compactflash", "micro sd", "microsd", "sdxc", "sdhc", "usb", "ssd", "hdd", "sd", "cd"
@@ -50,16 +46,17 @@ public class Blocker {
         STORAGE_ALIASES.put("adapter",   "zubehör");
         STORAGE_ALIASES.put("xqd",            "xqd");
         STORAGE_ALIASES.put("compact ?flash", "compactflash");
-        STORAGE_ALIASES.put("micro[ -]?sdxc", "sd");
-        STORAGE_ALIASES.put("micro[ -]?sdhc", "sd");
-        STORAGE_ALIASES.put("micro[ -]?sd",   "sd");
-        STORAGE_ALIASES.put("sdxc",           "sd");
-        STORAGE_ALIASES.put("2.0",           "usb");
-        STORAGE_ALIASES.put("3.0",           "usb");
-
-
+        STORAGE_ALIASES.put("micro\\b.*?\\bsdxc", "microsdxc");
+        STORAGE_ALIASES.put("micro\\b.*?\\bsdhc", "microsdhc");
+        STORAGE_ALIASES.put("micro\\b.*?\\bsd", "microsd");
+        STORAGE_ALIASES.put("micro[ -]?sdhc", "microsdhc");
+        STORAGE_ALIASES.put("micro[ -]?sdxc", "microsdxc");
+        STORAGE_ALIASES.put("micro[ -]?sd",   "microsd");
+        STORAGE_ALIASES.put("sdxc",           "sdxc");
+        //STORAGE_ALIASES.put("2.0",           "usb");
+        //STORAGE_ALIASES.put("3.0",           "usb");
         STORAGE_ALIASES.put("speicherkarte",           "sd");
-        STORAGE_ALIASES.put("sdhc",           "sd");
+        STORAGE_ALIASES.put("sdhc",           "sdhc");
         STORAGE_ALIASES.put("ssd",            "ssd");
         STORAGE_ALIASES.put("hdd",            "hdd");
         STORAGE_ALIASES.put("\\bsd\\b",       "sd");
@@ -67,6 +64,7 @@ public class Blocker {
         STORAGE_ALIASES.put("memory card",    "sd");
         STORAGE_ALIASES.put("\\busb\\b(?![ -]?adapter)", "usb");
         STORAGE_ALIASES.put("cd",             "cd");
+        STORAGE_ALIASES.put("extreme",             "extreme");
     }
 
     private static final List<Map.Entry<Pattern,String>> STORAGE_PATTERNS =
@@ -98,7 +96,7 @@ public class Blocker {
     }
 
     public static String unify(){
-
+        return null;
     }
 
     public static String blockByBrand(Product product) {
@@ -117,7 +115,7 @@ public class Blocker {
      **/
      public static String reassignMissingBrandsByName(Product product) {
          String name = product.brand.toLowerCase() + " " + product.price + " " + product.description + " " + product.name;
-         name.toLowerCase();
+         name.toLowerCase(Locale.ROOT);
          Matcher m = ALL_BRANDS.matcher(name);
          if (m.find()) {
              return m.group().toLowerCase();
@@ -150,7 +148,16 @@ public class Blocker {
      * Detects storage type using word boundaries; checks rarer types first
      */
     public static String detectStorageType(Product p) {
-        String txt = (p.name + " " + p.price+ " " + p.description).toLowerCase();
+        String txt = (p.name + " " + p.price + " " + p.description + " " + p.brand)
+                .toLowerCase(Locale.ROOT);
+
+        for (Map.Entry<Pattern, String> e : STORAGE_PATTERNS) {
+            if (e.getKey().matcher(txt).find()) {
+                return e.getValue();
+            }
+        }
+        return "unknown";
+        /*String txt = (p.name + " " + p.price+ " " + p.description).toLowerCase();
         String result = "";
         List<String> matched = new ArrayList<>();
         for (Map.Entry<Pattern, String> e : STORAGE_PATTERNS) {
@@ -171,7 +178,7 @@ public class Blocker {
         if (result.equals("")) {
             return "unknown";
         }
-        return result;
+        return result;*/
     }
     /**
      * Ermitteln der memory size
@@ -235,7 +242,7 @@ public class Blocker {
         //String text = (p.name + " " + p.description).toLowerCase(Locale.ROOT);
 
         for (String sz : MEMORY_SIZES) {
-            String regexGb = "\\b" + Pattern.quote(sz) + "\\s*gb";
+            String regexGb =   Pattern.quote(sz) + "\\s*gb";
             if (Pattern.compile(regexGb, Pattern.CASE_INSENSITIVE).matcher(text).find()) {
                 return sz;
             }

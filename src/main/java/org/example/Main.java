@@ -57,11 +57,11 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
         // generates input stream with double tab as a delimiter between columns
-        InputStream stream = CsvConverter.convertCsvToDoubleTabStream("src/main/resources/dataset_2/Z2_small.csv");
+        InputStream stream = CsvConverter.convertCsvToDoubleTabStream("src/main/resources/dataset_2/Z2.csv");
         List<Product> products = loadProducts(stream);
         // clean product names and brands from weird characters
         cleanProductNamesAndBrands(products);
-        List<Pair> groundTruth = loadGroundTruth("src/main/resources/dataset_2/ZY2_small.csv");
+        List<Pair> groundTruth = loadGroundTruth("src/main/resources/dataset_2/ZY2.csv");
 
         long start = System.currentTimeMillis();
 
@@ -117,7 +117,7 @@ public class Main {
 
 
         // Generate matches based on these blocks
-        double threshold = 0.58;
+        double threshold = 0.55;
         List<Pair> matches =
                 Matcher.generateMatches(blocks, products, threshold);
 
@@ -138,8 +138,8 @@ public class Main {
             }
             if (p.brand != null) {
                 // Keep letters, digits, and spaces only
-                String[] cleanedBrands = CleanString(p.brand).trim().split("\\s+");
-                p.brand = cleanedBrands[0];
+                String cleanedBrand = CleanString(p.brand).trim();
+                p.brand = cleanedBrand;
             }
         }
     }

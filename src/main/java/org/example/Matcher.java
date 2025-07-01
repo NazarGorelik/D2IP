@@ -17,21 +17,22 @@ public class Matcher {
     public static List<Pair> generateMatches(Map<String, List<Integer>> blocks, List<Product> products, double threshold) {
         List<Pair> candidatePairs = new CopyOnWriteArrayList<>();
         Set<Pair> seenPairs = ConcurrentHashMap.newKeySet();
-        Map<Integer,Integer> usedIds = new ConcurrentHashMap<>();
+        Set<Pair> usedIds = new HashSet<>();
         Map<Integer, Product> productById = products.stream()
                 .collect(Collectors.toMap(p -> p.id, p -> p));
 
         AtomicInteger count = new AtomicInteger();
-        //blocks.entrySet().parallelStream().forEach(block -> {
+        blocks.entrySet().parallelStream().forEach(block -> {
 
-                     for (Map.Entry<String, List<Integer>> block : blocks.entrySet()  ) {
+                    // for (Map.Entry<String, List<Integer>> block : blocks.entrySet()  ) {
 
             String blockName = block.getKey();
             double fixedsim = 0;
             int unknowncount = countUnknownRegex(blockName);
+            usedIds.clear();
             switch (unknowncount) {
                 case 0:
-                    fixedsim = 0.22;
+                    fixedsim = 0.3;
                     break;
                 case 1:
                     fixedsim = 0.1;
@@ -68,19 +69,23 @@ public class Matcher {
                     Product p2 = productById.get(rowIds.get(j));
                     int id1 = Math.min(p1.id, p2.id);
                     int id2 = Math.max(p1.id, p2.id);
+                    Pair p = new Pair(id1, id2);
 
-                    if ( usedIds.containsKey(id1)
-                            && usedIds.get(id1).equals(id2) ) {
+                    if ( usedIds.contains(p)) {
                         continue inner;
                     }
-                    if (p1.brand.equals(p2.brand)) {tempfixedsim = tempfixedsim + 0.05;}
+                    if (p1.brand.equals(p2.brand) && !p1.brand.isEmpty()) {tempfixedsim = tempfixedsim + 0.05;}
 
                     double jaccardSimilarity = jaccardSimilarity(p1, p2);
-                    if (jaccardSimilarity < 0.25) continue inner; // skip clearly dissimilar
-                    double levenshteinsim = levenshteinSimilarity(p1, p2);
+                    if (jaccardSimilarity < 0.18) {
+
+                        usedIds.add(p);
+                        continue inner;// skip clearly dissimilar
+                    }
+                    //double levenshteinsim = levenshteinSimilarity(p1, p2);
 
 
-                    double sim = 0.83 * jaccardSimilarity + 0.25 * levenshteinsim; //+ tempfixedsim;
+                    double sim = 0.83 * jaccardSimilarity;  //+ tempfixedsim;// * levenshteinsim
 
                     if (sim >= (threshold)) {
 
@@ -91,11 +96,13 @@ public class Matcher {
                         if (seenPairs.add(pair)) {
                             candidatePairs.add(pair);
                             paircount.incrementAndGet();
-                            usedIds.put(id1, id2);
+                            usedIds.add(pair);
 
 
                             continue inner;
                         }
+                    }else{
+                        usedIds.add(p);
                     }
                         /*if (j == rowIds.size() - 1){
                             rowIds.remove(i);
@@ -106,8 +113,8 @@ public class Matcher {
             }
             System.out.println("Gefundene Matches: " + paircount.get());
             System.out.println(count.incrementAndGet());
-         //});
-        }
+         });
+       // }
       //  }
             /* {
                 // 1) Große Blöcke in drei Preis-Sub-Blöcke unterteilen:
@@ -189,7 +196,10 @@ public class Matcher {
         union.addAll(set2);
 
 
-        return union.isEmpty() ? 0.0 : (double) intersection.size() / union.size() + bonus;
+
+
+
+        return union.isEmpty() ? 0.0 : ((double) intersection.size() / union.size()) + bonus;
     }
 
     private static double levenshteinSimilarity(Product p1, Product p2) {
