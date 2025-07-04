@@ -3,38 +3,35 @@ package org.example;
 import org.example.model.Pair;
 import org.example.model.Product;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class Main {
 
     public static void main(String[] args) throws Exception {
-        long startTime = System.currentTimeMillis();
+        long startTime = System.nanoTime();  // ⏱️ Startzeit
 
-        // 🔄 Daten laden
-        List<Product> products = DataLoader.loadProducts("src/main/resources/dataset_2/Z2_mittel.csv");
-        Set<Pair> groundTruth = new HashSet<>(DataLoader.loadTruePairs("src/main/resources/dataset_2/ZY2_mittel.csv"));
+        String productFile = "src/main/resources/dataset_2/Z2_mittel.csv";
+        String pairFile = "src/main/resources/dataset_2/ZY2_mittel.csv";
+        double threshold = 0.55;
+
+        List<Product> products = DataLoader.loadProducts(productFile);
+        List<Pair> groundTruth = DataLoader.loadTruePairs(pairFile);
+
         System.out.println("✅ Produkte geladen: " + products.size());
         System.out.println("✅ Ground Truth Pairs geladen: " + groundTruth.size());
 
-        // 🔗 Blocking
-        Blocker blocker = new Blocker();
-        Map<String, List<Integer>> blocks = blocker.blockProducts(products);
+        Map<String, List<Integer>> blocks = Blocker.blockProducts(products);
         System.out.println("📦 Anzahl Blocks: " + blocks.size());
 
-        // 📊 Blocking Coverage analysieren
-        BlockChecker.analyzeBlockingCoverage(groundTruth, products, blocks);
+        Set<Pair> predictedPairs = Matcher.generateMatches(blocks, products, threshold);
 
-        // 🤖 Matching starten
-        double threshold = 0.5;
         System.out.println("🔍 Starte Matching mit Schwellenwert: " + threshold);
-        Set<Pair> predictedPairs = new HashSet<>(Matcher.generateMatches(blocks, products, threshold));
+        Evaluator.evaluate(predictedPairs.stream().toList(), groundTruth);
 
-        // 📈 Evaluation
-        Evaluator.evaluate(new ArrayList<>(predictedPairs), new ArrayList<>(groundTruth));
-
-        // ⏱️ Laufzeit messen
-        long endTime = System.currentTimeMillis();
-        double durationSec = (endTime - startTime) / 1000.0;
-        System.out.printf("⏱️ Laufzeit: %.2f Sekunden\n", durationSec);
+        long endTime = System.nanoTime();  // ⏱️ Endzeit
+        double durationSeconds = (endTime - startTime) / 1_000_000_000.0;
+        System.out.printf("⏱️ Laufzeit: %.2f Sekunden%n", durationSeconds);
     }
 }
