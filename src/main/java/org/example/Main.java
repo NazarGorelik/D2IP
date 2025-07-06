@@ -7,8 +7,6 @@ import org.example.model.Product;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -69,14 +67,14 @@ public class Main {
         Evaluator.evaluate(combinedMatches, groundTruth);
 
         // === Export finaler Matches ===
-        try (PrintWriter writer = new PrintWriter(new FileWriter("src/main/resources/dataset_1/matched_pairs.csv"))) {
-            writer.println("id1,id2");
-            for (Pair pair : combinedMatches) {
-                writer.printf("%d,%d%n", pair.getId1(), pair.getId2());
-            }
-            System.out.println("✅ Matches wurden exportiert nach src/main/resources/matched_pairs.csv");
-        } catch (Exception e) {
-            System.err.println("❌ Fehler beim Schreiben der CSV: " + e.getMessage());
-        }
+//        try (PrintWriter writer = new PrintWriter(new FileWriter("src/main/resources/dataset_1/matched_pairs.csv"))) {
+//            writer.println("id1,id2");
+//            for (Pair pair : combinedMatches) {
+//                writer.printf("%d,%d%n", pair.getId1(), pair.getId2());
+//            }
+//            System.out.println("Matches wurden exportiert nach src/main/resources/matched_pairs.csv");
+//        } catch (Exception e) {
+//            System.err.println("Fehler beim Schreiben der CSV: " + e.getMessage());
+//        }
     }
 }
