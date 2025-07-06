@@ -20,7 +20,7 @@ public class Main {
             reader.readLine(); // Skip header
             while ((line = reader.readLine()) != null) {
                 String[] parts = line.split(",", 2); // only split on first comma
-                if (parts.length < 2) continue;
+                if (parts.length < 2) continue; // if there is no id or title
                 try {
                     products.add(new Product(Integer.parseInt(parts[0].trim()), parts[1].trim()));
                 } catch (NumberFormatException e) {
@@ -31,6 +31,7 @@ public class Main {
         return products;
     }
 
+    // Pair(smallId, bigId)
     public static List<Pair> loadGroundTruth(String filePath) throws Exception {
         List<Pair> gt = new ArrayList<>();
         try (CSVReader reader = new CSVReader(new FileReader(filePath))) {
@@ -65,16 +66,5 @@ public class Main {
 
         System.out.printf("Runtime: %.2f seconds\n", (end - start) / 1000.0);
         Evaluator.evaluate(combinedMatches, groundTruth);
-
-        // === Export finaler Matches ===
-//        try (PrintWriter writer = new PrintWriter(new FileWriter("src/main/resources/dataset_1/matched_pairs.csv"))) {
-//            writer.println("id1,id2");
-//            for (Pair pair : combinedMatches) {
-//                writer.printf("%d,%d%n", pair.getId1(), pair.getId2());
-//            }
-//            System.out.println("Matches wurden exportiert nach src/main/resources/matched_pairs.csv");
-//        } catch (Exception e) {
-//            System.err.println("Fehler beim Schreiben der CSV: " + e.getMessage());
-//        }
     }
 }
