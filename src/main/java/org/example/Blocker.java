@@ -97,9 +97,9 @@ public class Blocker {
         return blocks;
     }
 
-    public static String unify(){
-
-    }
+//    public static String unify(){
+//
+//    }
 
     public static String blockByBrand(Product product) {
         String brand = product.brand.toLowerCase();
