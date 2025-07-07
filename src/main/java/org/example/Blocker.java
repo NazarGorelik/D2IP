@@ -16,8 +16,8 @@ public class Blocker {
             }
         }
 
-        // Optional: Entferne extrem große Blöcke (z. B. >300)
-        blocks.entrySet().removeIf(entry -> entry.getValue().size() > 300);
+        // Optional: Sehr große Blöcke (>500 Einträge) entfernen
+        blocks.entrySet().removeIf(entry -> entry.getValue().size() > 500);
 
         return blocks;
     }
@@ -25,27 +25,64 @@ public class Blocker {
     public static Set<String> generateBlockingKeys(Product p) {
         Set<String> keys = new HashSet<>();
 
-        String combined = (p.name + " " + p.brand).toLowerCase().replaceAll("[^a-z0-9 ]", " ");
-        String[] tokens = combined.trim().split("\\s+");
+        String rawText = (p.name + " " + p.brand)
+                .toLowerCase()
+                .replaceAll("[^a-z0-9 ]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+
+        String[] tokens = rawText.split(" ");
+
+        String gb = null;
+        String prefix = null;
+        String suffix = null;
+        String brand = p.brand != null ? p.brand.toLowerCase().replaceAll("[^a-z0-9]", "") : null;
 
         for (String token : tokens) {
             if (token.length() < 2) continue;
 
-            // Generischer Token
-            keys.add("TOKEN_" + token);
-
-            // Speichergrößen wie "32gb", "64mb", "128g", etc.
-            if (token.matches("\\d{1,4}(gb|mb|g|m)")) {
+            // Speichergröße erkennen (z. B. 128gb, 64mb)
+            if (gb == null && token.matches("\\d{1,4}(gb|mb)")) {
                 String digits = token.replaceAll("[^0-9]", "");
-                if (!digits.isEmpty()) {
-                    keys.add("GB_" + digits + "gb");
-                }
+                gb = "gb" + digits;
             }
 
-            // Wenn Token z. B. "64" ist, prüfe Kontext
-            if (token.matches("\\d{2,4}")) {
-                keys.add("NUM_" + token);
+            // Prefix extrahieren (z. B. sams → samsung)
+            if (prefix == null && token.length() >= 4) {
+                prefix = token.substring(0, 4);
             }
+
+            // Suffix extrahieren (z. B. max, pad, note)
+            if (suffix == null && token.length() >= 4) {
+                suffix = token.substring(token.length() - 3);
+            }
+
+            // Einzelne Token als Key
+            keys.add("TOKEN_" + token);
+        }
+
+        // Kombinierte Schlüssel
+        if (gb != null && prefix != null && brand != null) {
+            keys.add("BLOCK_" + gb + "_" + prefix + "_" + brand);
+        }
+        if (gb != null && prefix != null) {
+            keys.add("BLOCK_" + gb + "_" + prefix);
+        }
+        if (gb != null && brand != null) {
+            keys.add("BLOCK_" + gb + "_" + brand);
+        }
+
+        if (prefix != null) {
+            keys.add("FALLBACK_PREFIX_" + prefix);
+        }
+
+        if (suffix != null) {
+            keys.add("FALLBACK_SUFFIX_" + suffix);
+        }
+
+        // Kombinierter Suffix + Brand
+        if (suffix != null && brand != null) {
+            keys.add("BLOCK_" + suffix + "_" + brand);
         }
 
         return keys;

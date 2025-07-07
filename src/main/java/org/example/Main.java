@@ -12,9 +12,9 @@ public class Main {
     public static void main(String[] args) throws Exception {
         long startTime = System.nanoTime();  // ⏱️ Startzeit
 
-        String productFile = "src/main/resources/dataset_2/Z2_mittel.csv";
-        String pairFile = "src/main/resources/dataset_2/ZY2_mittel.csv";
-        double threshold = 0.55;
+        String productFile = "src/main/resources/dataset_2/Z2.csv";
+        String pairFile = "src/main/resources/dataset_2/ZY2.csv";
+        double threshold = 0.63;
 
         List<Product> products = DataLoader.loadProducts(productFile);
         List<Pair> groundTruth = DataLoader.loadTruePairs(pairFile);

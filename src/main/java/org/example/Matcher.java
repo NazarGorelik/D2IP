@@ -10,7 +10,7 @@ public class Matcher {
 
     public static Set<Pair> generateMatches(Map<String, List<Integer>> blocks, List<Product> products, double threshold) {
         Set<Pair> candidatePairs = new HashSet<>();
-        Set<Pair> seen = new HashSet<>();
+        Set<Pair> seenPairs = new HashSet<>();
 
         Map<Integer, Product> productById = products.stream()
                 .collect(Collectors.toMap(p -> p.id, p -> p));
@@ -21,14 +21,16 @@ public class Matcher {
                     int id1 = Math.min(ids.get(i), ids.get(j));
                     int id2 = Math.max(ids.get(i), ids.get(j));
                     Pair pair = new Pair(id1, id2);
-                    if (seen.contains(pair)) continue;
-                    seen.add(pair);
+
+                    if (seenPairs.contains(pair)) continue;
+                    seenPairs.add(pair);
 
                     Product p1 = productById.get(id1);
                     Product p2 = productById.get(id2);
 
-                    double similarity = jaccardSimilarity(normalize(p1), normalize(p2));
-                    if (similarity >= threshold) {
+                    double jacc = jaccardSimilarity(p1, p2);
+
+                    if (jacc >= threshold) {
                         candidatePairs.add(pair);
                     }
                 }
@@ -38,22 +40,26 @@ public class Matcher {
         return candidatePairs;
     }
 
-    private static String normalize(Product p) {
-        return (p.name + " " + p.brand).toLowerCase().replaceAll("[^a-z0-9 ]", " ").replaceAll("\\s+", " ").trim();
+    private static double jaccardSimilarity(Product p1, Product p2) {
+        Set<String> set1 = tokenize(p1.name + " " + p1.brand);
+        Set<String> set2 = tokenize(p2.name + " " + p2.brand);
+
+        Set<String> intersection = new HashSet<>(set1);
+        intersection.retainAll(set2);
+
+        Set<String> union = new HashSet<>(set1);
+        union.addAll(set2);
+
+        return union.isEmpty() ? 0.0 : (double) intersection.size() / union.size();
     }
 
-    private static double jaccardSimilarity(String s1, String s2) {
-        Set<String> tokens1 = new HashSet<>(Arrays.asList(s1.split(" ")));
-        Set<String> tokens2 = new HashSet<>(Arrays.asList(s2.split(" ")));
-
-        if (tokens1.isEmpty() || tokens2.isEmpty()) return 0.0;
-
-        Set<String> intersection = new HashSet<>(tokens1);
-        intersection.retainAll(tokens2);
-
-        Set<String> union = new HashSet<>(tokens1);
-        union.addAll(tokens2);
-
-        return (double) intersection.size() / union.size();
+    private static Set<String> tokenize(String text) {
+        return new HashSet<>(Arrays.asList(
+                text.toLowerCase()
+                        .replaceAll("[^a-z0-9 ]", " ")
+                        .replaceAll("\\s+", " ")
+                        .trim()
+                        .split(" ")
+        ));
     }
 }
