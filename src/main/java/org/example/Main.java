@@ -84,14 +84,14 @@ public class Main {
         Evaluator.evaluate(matches, groundTruth);
 
         // Export matches
-        try (PrintWriter writer = new PrintWriter(new FileWriter("src/main/resources/matched_pairs.csv"))) {
+        /*try (PrintWriter writer = new PrintWriter(new FileWriter("src/main/resources/matched_pairs.csv"))) {
             writer.println("id1,id2");
             for (Pair pair : matches) {
                 writer.printf("%d,%d%n", pair.getId1(), pair.getId2());
             }
-            System.out.println(" Matches wurden exportiert nach src/main/resources/matched_pairs.csv");
+           // System.out.println(" Matches wurden exportiert nach src/main/resources/matched_pairs.csv");
         } catch (Exception e) {
             System.err.println(" Fehler beim Schreiben der CSV: " + e.getMessage());
-        }
+        }*/
     }
 }
