@@ -1,15 +1,11 @@
-// === Main.java ===
 package org.example;
 
 import com.opencsv.CSVReader;
 import org.example.model.Pair;
 import org.example.model.Product;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.io.*;
+import java.util.*;
 
 public class Main {
 
@@ -20,7 +16,7 @@ public class Main {
             reader.readLine(); // Skip header
             while ((line = reader.readLine()) != null) {
                 String[] parts = line.split(",", 2); // only split on first comma
-                if (parts.length < 2) continue; // if there is no id or title
+                if (parts.length < 2) continue;
                 try {
                     products.add(new Product(Integer.parseInt(parts[0].trim()), parts[1].trim()));
                 } catch (NumberFormatException e) {
@@ -31,7 +27,6 @@ public class Main {
         return products;
     }
 
-    // Pair(smallId, bigId)
     public static List<Pair> loadGroundTruth(String filePath) throws Exception {
         List<Pair> gt = new ArrayList<>();
         try (CSVReader reader = new CSVReader(new FileReader(filePath))) {
@@ -51,20 +46,21 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        String productFile = "src/main/resources/dataset_1/Z1_update.csv";
-        String groundTruthFile = "src/main/resources/dataset_1/ZY1_update.csv";
+        String productFile = "src/main/resources/Z1_update.csv";
+        String groundTruthFile = "src/main/resources/ZY1_update.csv";
 
         List<Product> products = loadProducts(productFile);
         List<Pair> groundTruth = loadGroundTruth(groundTruthFile);
 
-        Map<String, List<Integer>> blocks = Blocker.createBlocks(products);
-
-        System.out.println("------------- BEST COMBINED EVALUATION (Multi-Key Blocking) -------------");
+        System.out.println("------------- COMBINED BLOCKING + MATCHING -------------");
         long start = System.currentTimeMillis();
-        List<Pair> combinedMatches = Matcher.generateMatches(blocks, products, 0.65, Matcher.SimilarityType.COMBINED);
-        long end = System.currentTimeMillis();
 
+        Map<String, List<Integer>> combinedBlocks = Blocker.createCombinedBlocks(products);
+        List<Pair> matches = Matcher.generateMatches(combinedBlocks, products, 0.63, Matcher.SimilarityType.COMBINED);
+
+        long end = System.currentTimeMillis();
         System.out.printf("Runtime: %.2f seconds\n", (end - start) / 1000.0);
-        Evaluator.evaluate(combinedMatches, groundTruth);
+
+        Evaluator.evaluate(matches, groundTruth);
     }
 }

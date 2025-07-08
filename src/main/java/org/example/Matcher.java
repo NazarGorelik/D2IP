@@ -20,9 +20,11 @@ public class Matcher {
         Set<Pair> seenPairs = new HashSet<>();
 
         for (List<Integer> rowIds : blocks.values()) {
-            if (rowIds.size() < 100) {
-                for (int i = 0; i < rowIds.size(); i++) {
-                    for (int j = i + 1; j < rowIds.size(); j++) {
+            int rowSize = rowIds.size();
+
+            if (rowSize < 100) {
+                for (int i = 0; i < rowSize; i++) {
+                    for (int j = i + 1; j < rowSize; j++) {
                         Product p1 = products.get(rowIds.get(i));
                         Product p2 = products.get(rowIds.get(j));
 
