@@ -10,10 +10,10 @@ public class Product {
 
     public Product(int id, String name, String price, String brand, String description, String category) {
         this.id = id;
-        this.name = name != null ? name : "";
-        this.brand = brand != null ? brand : "";
-        this.description = description != null ? description : "";
-        this.category = category != null ? category : "";
+        this.name = name;
         this.price = price;
+        this.brand = brand;
+        this.description = description;
+        this.category = category;
     }
 }
