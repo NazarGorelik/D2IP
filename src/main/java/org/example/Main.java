@@ -66,8 +66,8 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        String productFile = "src/main/resources/Z2.csv";
-        String groundTruthFile = "src/main/resources/ZY2.csv";
+        String productFile = "src/main/resources/dataset2/Z2.csv";
+        String groundTruthFile = "src/main/resources/dataset2/ZY2.csv";
 
         List<Product> products = loadProducts(productFile);
         List<Pair> groundTruth = loadGroundTruth(groundTruthFile);
