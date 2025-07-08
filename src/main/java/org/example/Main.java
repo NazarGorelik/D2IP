@@ -66,8 +66,8 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
-        String productFile = "src/main/resources/dataset2/Z2.csv";
-        String groundTruthFile = "src/main/resources/dataset2/ZY2.csv";
+        String productFile = "src/main/resources/dataset_2/Z2.csv";
+        String groundTruthFile = "src/main/resources/dataset_2/ZY2.csv";
 
         List<Product> products = loadProducts(productFile);
         List<Pair> groundTruth = loadGroundTruth(groundTruthFile);
@@ -79,19 +79,8 @@ public class Main {
         List<Pair> matches = Matcher.generateMatches(combinedBlocks, products, 0.5, Matcher.SimilarityType.COMBINED);
 
         long end = System.currentTimeMillis();
-        System.out.printf("⏱ Runtime: %.2f seconds\n", (end - start) / 1000.0);
+        System.out.printf("Runtime: %.2f seconds\n", (end - start) / 1000.0);
 
         Evaluator.evaluate(matches, groundTruth);
-
-        // Export matches
-        /*try (PrintWriter writer = new PrintWriter(new FileWriter("src/main/resources/matched_pairs.csv"))) {
-            writer.println("id1,id2");
-            for (Pair pair : matches) {
-                writer.printf("%d,%d%n", pair.getId1(), pair.getId2());
-            }
-           // System.out.println(" Matches wurden exportiert nach src/main/resources/matched_pairs.csv");
-        } catch (Exception e) {
-            System.err.println(" Fehler beim Schreiben der CSV: " + e.getMessage());
-        }*/
     }
 }
